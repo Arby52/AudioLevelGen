@@ -14,7 +14,6 @@ public class Track : MonoBehaviour {
     public void Initialise()
     {
         source = gameObject.AddComponent<AudioSource>();
-        print(source);
         source.clip = clip;
         source.name = name;
         source.outputAudioMixerGroup = mixer;
@@ -23,6 +22,31 @@ public class Track : MonoBehaviour {
     public void Play()
     {
         source.Play();
+    }
+
+    public void Stop()
+    {
+        source.Stop();
+    }
+
+    public void Pause()
+    {
+        source.Pause();
+    }
+
+    public void UnPause()
+    {
+        source.UnPause();
+    }
+
+    public float GetTrackLength()
+    {
+        return clip.length;
+    }
+
+    public bool IsPlaying()
+    {
+        return source.isPlaying;
     }
 
 }

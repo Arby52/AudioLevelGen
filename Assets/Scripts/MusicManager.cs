@@ -6,15 +6,23 @@ using UnityEngine.Audio;
 public class MusicManager : MonoBehaviour {
 
     private Object[] objectsToLoad;
-    private List<Track> loadedAudioTracks = new List<Track>();  
+    private List<Track> loadedAudioTracks = new List<Track>();
     public Playlist playlist { get; private set; }
 
+    private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
 
-    public int songIndexToPlay = 0;
+    [SerializeField]
+    private int songIndexToPlay = 0;
+    private int previousSongIndex;
+    public float songTimeElapsed { get; private set; } = 0;
 
 	// Use this for initialization
-	void Start () {        
+	void Start () {
+
+        levelGenerator = GetComponent<LevelGenerator>();
+
+        previousSongIndex = songIndexToPlay;
 
         GameObject tracksgo = new GameObject();        
         tracksgo.name = "Tracks";
@@ -46,7 +54,7 @@ public class MusicManager : MonoBehaviour {
         {
             //Should be impossible for this exception to happen because of the "typeof(AudioClip)" when loading in the resources.
             Debug.LogException(e);
-        }
+        }        
 
         Play();
 
@@ -54,14 +62,51 @@ public class MusicManager : MonoBehaviour {
 
     void Play()
     {
-        if (!(songIndexToPlay >= playlist.audioTracks.Count))
+        if (songIndexToPlay < playlist.audioTracks.Count)
         {
-            playlist.audioTracks[songIndexToPlay].Play();
+            //Stop previous track
+            Track previous = playlist.audioTracks[previousSongIndex];
+            if (previous.IsPlaying())
+            {
+                previous.Stop();
+            }
+
+            //Play current track
+            Track current = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
+            levelGenerator.GenerateLevel(current);
+            songTimeElapsed = current.GetTrackLength();
+            current.Play();
+            print("Now Playing: " + current.name);
         }
+    }
+
+    void PlayNextSong()
+    {
+        previousSongIndex = songIndexToPlay;
+        if (songIndexToPlay >= playlist.audioTracks.Count - 1 )
+        {            
+            songIndexToPlay = 0;
+        } else
+        {
+            songIndexToPlay++;
+        }
+        print(songIndexToPlay);
+
+        Play();
     }
 	
 	// Update is called once per frame
 	void Update () {
-		
+        if(Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            PlayNextSong();
+        }
+
+        songTimeElapsed -= Time.deltaTime;
+        if(songTimeElapsed == 0)
+        {
+            PlayNextSong();
+        }
+        //print("Time Left: " + songTimeElapsed);        
 	}
 }
