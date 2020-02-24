@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class LevelGenerator : MonoBehaviour {
 
+    public GameObject player;
+
     private Track track;    
 
     GameObject levelFloor;
@@ -37,8 +39,11 @@ public class LevelGenerator : MonoBehaviour {
         levelFloor.transform.position = new Vector3(0, 0, 0);
         levelFloor.transform.localScale = new Vector3(levelLength, 1, 1);
         levelFloor.transform.SetParent(transform); //Make sure to set parent after transform and position have been set :)
+        DestroyImmediate(levelFloor.GetComponent<BoxCollider>());
+        BoxCollider2D bx = levelFloor.AddComponent<BoxCollider2D>();
+        levelFloor.tag = "Ground";
 
-        //Add and Create Material and Shader
+        //Add and Create Material and Shader for floor
         Shader shader = Shader.Find("Standard");
         Material floorMaterial = new Material(shader);
         floorMaterial.color = Color.red;
@@ -53,8 +58,14 @@ public class LevelGenerator : MonoBehaviour {
         levelBar.transform.localScale = new Vector3(barWidth, 1, 1);
         levelBar.transform.SetParent(levelFloor.transform);
 
-        lerpTime = 0;
-        
+        //Add and Create Material and Shader for bar
+        Material barMaterial = new Material(shader);
+        barMaterial.color = Color.green;
+        levelBar.GetComponent<Renderer>().material = barMaterial;
+
+        player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, 0);
+
+        lerpTime = 0;        
     }
 
     public void Update()
