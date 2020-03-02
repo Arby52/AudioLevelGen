@@ -11,11 +11,15 @@ public class MusicManager : MonoBehaviour {
 
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
+    public GameObject visualiserCubePrefab;
+    GameObject[] visualiserCubes = new GameObject[512];
 
+    Track currentSong;
     [SerializeField]
     private int songIndexToPlay = 0;
     private int previousSongIndex;
     public float songTimeElapsed { get; private set; } = 0;
+    public bool songPlaying { get; private set; } = false;
 
 	// Use this for initialization
 	void Start () {
@@ -67,16 +71,19 @@ public class MusicManager : MonoBehaviour {
             //Stop previous track
             Track previous = playlist.audioTracks[previousSongIndex];
             if (previous.IsPlaying())
-            {
+            {                
                 previous.Stop();
+                songPlaying = false;
             }
 
             //Play current track
-            Track current = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
-            levelGenerator.GenerateLevel(current);
-            songTimeElapsed = current.GetTrackLength();
-            current.Play();
-            print("Now Playing: " + current.name);
+            currentSong = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
+            levelGenerator.GenerateLevel(currentSong);
+            songTimeElapsed = currentSong.GetTrackLength();
+            currentSong.Play();
+            InstantiateCubes();
+            songPlaying = true;
+            print("Now Playing: " + currentSong.name);
         }
     }
 
@@ -94,6 +101,23 @@ public class MusicManager : MonoBehaviour {
 
         Play();
     }
+
+    void InstantiateCubes()
+    {
+        float divisionSpace = 512 / currentSong.GetTrackLength();
+
+        GameObject visualiserHolder = new GameObject();
+        visualiserHolder.transform.position = transform.position;
+        visualiserHolder.transform.parent = transform;
+        visualiserHolder.name = "Visual Holder";
+        for(int i = 0; i < 512; i++)
+        {
+            GameObject cube = Instantiate(visualiserCubePrefab);
+            cube.transform.position = transform.position;
+            cube.transform.parent = visualiserHolder.transform;
+            cube.name = "Cube " + i;
+        }
+    }
 	
 	// Update is called once per frame
 	void Update () {
@@ -108,5 +132,21 @@ public class MusicManager : MonoBehaviour {
             PlayNextSong();
         }
         //print("Time Left: " + songTimeElapsed);        
+
+        //take audio data from current song and create a visualiser.
+        if (songPlaying)
+        {
+            //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
+            float[] spectrumData = new float[512];
+            FFTWindow window = FFTWindow.Hanning;  //compare all windowing to see which works best for the system.
+            currentSong.source.GetSpectrumData(spectrumData, 0, window);
+            for(int i = 1; i < spectrumData.Length-1; i++)
+            {
+                Debug.DrawLine(new Vector3(i - 1, spectrumData[i] + 10, 0), new Vector3(i, spectrumData[i + 1] + 10, 0), Color.red);
+                Debug.DrawLine(new Vector3(i - 1, Mathf.Log(spectrumData[i - 1]) + 10, 2), new Vector3(i, Mathf.Log(spectrumData[i]) + 10, 2), Color.cyan);
+                Debug.DrawLine(new Vector3(Mathf.Log(i - 1), spectrumData[i - 1] - 10, 1), new Vector3(Mathf.Log(i), spectrumData[i] - 10, 1), Color.green);
+                Debug.DrawLine(new Vector3(Mathf.Log(i - 1), Mathf.Log(spectrumData[i - 1]), 3), new Vector3(Mathf.Log(i), Mathf.Log(spectrumData[i]), 3), Color.blue);
+            }
+        }
 	}
 }
