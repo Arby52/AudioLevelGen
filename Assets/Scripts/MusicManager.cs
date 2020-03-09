@@ -21,10 +21,17 @@ public class MusicManager : MonoBehaviour {
     float[] spectrumData = new float[512];
     float[] freqencyBand = new float[8];
     float[] bandBuffer = new float[8];
-    float[] bufferDecrease = new float[8];    
+    float[] bufferDecrease = new float[8];
+
+    float[] frequencyBandHighest = new float[8];
+    float[] frequencyBandNormalised = new float[8];  //Use this in gameplay and mechanics when not using buffer.
+    float[] bandBufferNormalised = new float[8];  //Use this in gameplay and mechanics when using buffer.
+
     public float decrease;
     public float increase;
     public bool useBuffer;
+
+
 
     Track currentSong;
     [SerializeField]
@@ -163,10 +170,10 @@ public class MusicManager : MonoBehaviour {
             
             FFTWindow window = FFTWindow.Hanning;  //compare all windowing to see which works best for the system.
             currentSong.source.GetSpectrumData(spectrumData, 0, window);
-
             
             CreateFrequencyBands();
             BandBuffer();
+            CreateAudioBands();
 
             for (int i = 0; i < freqencyBand.Length; i++)
             {
@@ -181,6 +188,22 @@ public class MusicManager : MonoBehaviour {
                     }
                 }
             }
+        }
+    }
+
+    void CreateAudioBands()
+    {
+        for(int i = 0; i < 8; i++)
+        {
+            //Set the band roof to the highest the band has been.
+            if(freqencyBand[i] > frequencyBandHighest[i])
+            {
+                frequencyBandHighest[i] = freqencyBand[i];
+            }
+
+            frequencyBandNormalised[i] = (freqencyBand[i] / frequencyBandHighest[i]);            
+            bandBufferNormalised[i] = (bandBuffer[i] / frequencyBandHighest[i]);
+
         }
     }
 
