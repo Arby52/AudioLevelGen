@@ -17,6 +17,15 @@ public class MusicManager : MonoBehaviour {
     public float startScale;
     public float scaleMultiplier;
 
+    //Audio Frequency data stuff
+    float[] spectrumData = new float[512];
+    float[] freqencyBand = new float[8];
+    float[] bandBuffer = new float[8];
+    float[] bufferDecrease = new float[8];    
+    public float decrease;
+    public float increase;
+    public bool useBuffer;
+
     Track currentSong;
     [SerializeField]
     private int songIndexToPlay = 0;
@@ -112,17 +121,15 @@ public class MusicManager : MonoBehaviour {
             DestroyImmediate(visualiserHolder);
         }
         visualiserHolder = new GameObject();
-        float divisionSpace = 512 / currentSong.GetTrackLength();
         Vector3 prevPos = new Vector3(transform.position.x - (currentSong.GetTrackLength() / 2), transform.position.y, 0);
         visualiserHolder.transform.position = transform.position;
         visualiserHolder.transform.parent = transform;
         visualiserHolder.name = "Visual Holder";
-        divisionSpace -= visualiserCubePrefab.transform.localScale.x;
-        print(divisionSpace);
+        
         for(int i = 0; i < visualiserCubes.Length; i++)
         {
             GameObject cube = (GameObject)Instantiate(visualiserCubePrefab);
-            cube.transform.position = prevPos + new Vector3(divisionSpace, 0, 0);
+            cube.transform.position = prevPos + new Vector3(2, 0, 0);
             prevPos = cube.transform.position;
             cube.transform.parent = visualiserHolder.transform;
             cube.name = "Cube " + i;
@@ -153,24 +160,48 @@ public class MusicManager : MonoBehaviour {
         if (songPlaying)
         {
             //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
-            float[] spectrumData = new float[512];
+            
             FFTWindow window = FFTWindow.Hanning;  //compare all windowing to see which works best for the system.
             currentSong.source.GetSpectrumData(spectrumData, 0, window);
 
-            float[] freqencyBand = new float[8];
-            CreateFrequencyBands(ref spectrumData, ref freqencyBand);
+            
+            CreateFrequencyBands();
+            BandBuffer();
 
             for (int i = 0; i < freqencyBand.Length; i++)
             {
                 if (visualiserCubes != null)
                 {
-                    visualiserCubes[i].transform.localScale = new Vector3(1, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
+                    if (useBuffer)
+                    {
+                        visualiserCubes[i].transform.localScale = new Vector3(1, (bandBuffer[i] * scaleMultiplier) + startScale, 1);
+                    } else
+                    {
+                        visualiserCubes[i].transform.localScale = new Vector3(1, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
+                    }
                 }
             }
         }
     }
 
-    void CreateFrequencyBands(ref float[] _spectrumData, ref float[] _frequencyBand)
+    void BandBuffer()
+    {
+        for(int i = 0; i < 8; i++)
+        {
+            if(freqencyBand[i] > bandBuffer[i])
+            {
+                bandBuffer[i] = freqencyBand[i];
+                bufferDecrease[i] = decrease;
+
+            } else if (freqencyBand[i] < bandBuffer[i])
+            {
+                bandBuffer[i] -= bufferDecrease[i];
+                bufferDecrease[i] *= increase;
+            }
+        }
+    }
+
+    void CreateFrequencyBands()
     {
         /*
         20-60 - Sub Bass
@@ -205,13 +236,13 @@ public class MusicManager : MonoBehaviour {
 
             for(int j = 0; j < sampleBand; j++)
             {
-                average += _spectrumData[count] * (count+1);
+                average += spectrumData[count] * (count+1);
                 count++;
             }
 
             average /= count;
 
-            _frequencyBand[i] = average * 10;
+            freqencyBand[i] = average * 10;
         }
     }
 }
