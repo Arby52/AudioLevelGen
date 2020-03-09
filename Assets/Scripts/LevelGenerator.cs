@@ -37,7 +37,7 @@ public class LevelGenerator : MonoBehaviour {
         levelFloor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         levelFloor.name = levelFloorNameString;
         levelFloor.transform.position = new Vector3(0, 0, 0);
-        levelFloor.transform.localScale = new Vector3(levelLength, 1, 1);
+        levelFloor.transform.localScale = new Vector3(levelLength, 1, 2);
         levelFloor.transform.SetParent(transform); //Make sure to set parent after transform and position have been set :)
         DestroyImmediate(levelFloor.GetComponent<BoxCollider>());
         BoxCollider2D bx = levelFloor.AddComponent<BoxCollider2D>();
@@ -63,7 +63,7 @@ public class LevelGenerator : MonoBehaviour {
         barMaterial.color = Color.green;
         levelBar.GetComponent<Renderer>().material = barMaterial;
 
-        player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, 0);
+        player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -1);
 
         lerpTime = 0;        
     }

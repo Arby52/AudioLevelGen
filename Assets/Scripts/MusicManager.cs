@@ -12,7 +12,10 @@ public class MusicManager : MonoBehaviour {
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
     public GameObject visualiserCubePrefab;
-    GameObject[] visualiserCubes = new GameObject[512];
+    public GameObject visualiserHolder;
+    GameObject[] visualiserCubes = new GameObject[8];
+    public float startScale;
+    public float scaleMultiplier;
 
     Track currentSong;
     [SerializeField]
@@ -104,18 +107,26 @@ public class MusicManager : MonoBehaviour {
 
     void InstantiateCubes()
     {
+        if(visualiserHolder != null)
+        {
+            DestroyImmediate(visualiserHolder);
+        }
+        visualiserHolder = new GameObject();
         float divisionSpace = 512 / currentSong.GetTrackLength();
-
-        GameObject visualiserHolder = new GameObject();
+        Vector3 prevPos = new Vector3(transform.position.x - (currentSong.GetTrackLength() / 2), transform.position.y, 0);
         visualiserHolder.transform.position = transform.position;
         visualiserHolder.transform.parent = transform;
         visualiserHolder.name = "Visual Holder";
-        for(int i = 0; i < 512; i++)
+        divisionSpace -= visualiserCubePrefab.transform.localScale.x;
+        print(divisionSpace);
+        for(int i = 0; i < visualiserCubes.Length; i++)
         {
-            GameObject cube = Instantiate(visualiserCubePrefab);
-            cube.transform.position = transform.position;
+            GameObject cube = (GameObject)Instantiate(visualiserCubePrefab);
+            cube.transform.position = prevPos + new Vector3(divisionSpace, 0, 0);
+            prevPos = cube.transform.position;
             cube.transform.parent = visualiserHolder.transform;
             cube.name = "Cube " + i;
+            visualiserCubes[i] = cube;
         }
     }
 	
@@ -134,19 +145,73 @@ public class MusicManager : MonoBehaviour {
         //print("Time Left: " + songTimeElapsed);        
 
         //take audio data from current song and create a visualiser.
+        AudioVisualisation();
+	}
+
+    void AudioVisualisation()
+    {
         if (songPlaying)
         {
             //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
             float[] spectrumData = new float[512];
             FFTWindow window = FFTWindow.Hanning;  //compare all windowing to see which works best for the system.
             currentSong.source.GetSpectrumData(spectrumData, 0, window);
-            for(int i = 1; i < spectrumData.Length-1; i++)
+
+            float[] freqencyBand = new float[8];
+            CreateFrequencyBands(ref spectrumData, ref freqencyBand);
+
+            for (int i = 0; i < freqencyBand.Length; i++)
             {
-                Debug.DrawLine(new Vector3(i - 1, spectrumData[i] + 10, 0), new Vector3(i, spectrumData[i + 1] + 10, 0), Color.red);
-                Debug.DrawLine(new Vector3(i - 1, Mathf.Log(spectrumData[i - 1]) + 10, 2), new Vector3(i, Mathf.Log(spectrumData[i]) + 10, 2), Color.cyan);
-                Debug.DrawLine(new Vector3(Mathf.Log(i - 1), spectrumData[i - 1] - 10, 1), new Vector3(Mathf.Log(i), spectrumData[i] - 10, 1), Color.green);
-                Debug.DrawLine(new Vector3(Mathf.Log(i - 1), Mathf.Log(spectrumData[i - 1]), 3), new Vector3(Mathf.Log(i), Mathf.Log(spectrumData[i]), 3), Color.blue);
+                if (visualiserCubes != null)
+                {
+                    visualiserCubes[i].transform.localScale = new Vector3(1, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
+                }
             }
         }
-	}
+    }
+
+    void CreateFrequencyBands(ref float[] _spectrumData, ref float[] _frequencyBand)
+    {
+        /*
+        20-60 - Sub Bass
+        60-250 - Bass
+        250-500 - Low Midrange 
+        500-2000 - Midrange
+        2000-4000 - Upper Midrange
+        4000-6000 - Presence
+        6000-20000 - Brilliance
+
+        0 - 2 = 86hz      -  86 - Sub bass
+        1 - 4 = 172hz     -  87 - 258  - Bass
+        2 - 8 = 344hz     -  259 - 602 - Low Midrange
+        3 - 16 = 688hz    -  603 - 1290  - Midrange
+        4 - 32 = 1376hz   -  1291 - 2666  - Midrange/ Upper Midrange
+        5 - 64 = 2752hz   -  2667 - 5418  - Upper Midrange/ Presence
+        6 - 128 = 5504hz  -  5419 - 10922  - Presence/Brilliance
+        7 - 256 = 11008hz -  10923 - 21930  - Brilliance
+        */
+
+        int count = 0;
+
+        for(int i = 0; i < 8; i++)
+        {
+            float average = 0;
+            int sampleBand = (int)Mathf.Pow(2, i) * 2; //2, 4, 8, 16, etc.
+
+            if(i == 7)
+            {
+                sampleBand += 2; //to hit the 512 smaples maximum.
+            }
+
+            for(int j = 0; j < sampleBand; j++)
+            {
+                average += _spectrumData[count] * (count+1);
+                count++;
+            }
+
+            average /= count;
+
+            _frequencyBand[i] = average * 10;
+        }
+    }
 }
