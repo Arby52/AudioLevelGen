@@ -5,12 +5,21 @@ using UnityEngine.Audio;
 
 public class MusicManager : MonoBehaviour {
 
-    private Object[] objectsToLoad;
+    //Track loading and playback
+    private Object[] objectsToLoad; // Loading in music tracks
     private List<Track> loadedAudioTracks = new List<Track>();
     public Playlist playlist { get; private set; }
 
+    Track currentSong;
+    public int songIndexToPlay = 0;
+    private int previousSongIndex;
+    public float songTimeElapsed { get; private set; } = 0;
+    public bool songPlaying { get; private set; } = false;
+
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
+
+    //Visualiser Variables
     public GameObject visualiserCubePrefab;
     public GameObject visualiserHolder;
     GameObject[] visualiserCubes = new GameObject[8];
@@ -18,38 +27,48 @@ public class MusicManager : MonoBehaviour {
     public float scaleMultiplier;
 
     //Audio Frequency data stuff
+    const int bands = 8;
+    
     float[] spectrumData = new float[512];
+    float[] spectrumDataHistory = new float[512];
     float[] freqencyBand = new float[8];
+    float[] frequencyBandHighest = new float[8];
     float[] bandBuffer = new float[8];
     float[] bufferDecrease = new float[8];
-
-    float[] frequencyBandHighest = new float[8];
-    float[] frequencyBandNormalised = new float[8];  //Use this in gameplay and mechanics when not using buffer.
-    float[] bandBufferNormalised = new float[8];  //Use this in gameplay and mechanics when using buffer.
-
     public float decrease;
     public float increase;
     public bool useBuffer;
 
+    //Normalised Frequency Data
+    float[] frequencyBandNormalised = new float[8];  //Use this in gameplay and mechanics when not using buffer.
+    float[] bandBufferNormalised = new float[8];  //Use this in gameplay and mechanics when using buffer.      
 
+    //Beat Detection Variables
+    float[] beatSamples = new float[1024];
+    float[] beatSamplesNormalised = new float[1024];
+    float[] beatSamplesHighest = new float[1024];
+    int beatWindow = 1024;
+    int sampleRate;
+    int hopSize = 128;
 
-    Track currentSong;
-    [SerializeField]
-    private int songIndexToPlay = 0;
-    private int previousSongIndex;
-    public float songTimeElapsed { get; private set; } = 0;
-    public bool songPlaying { get; private set; } = false;
+    // Use this for initialization
+    void Start () {
 
-	// Use this for initialization
-	void Start () {
-
+        //Populating variables
         levelGenerator = GetComponent<LevelGenerator>();
-
         previousSongIndex = songIndexToPlay;
+        
 
-        GameObject tracksgo = new GameObject();        
+        LoadTracks();
+        Play();
+
+	}
+
+    void LoadTracks()
+    {
+        GameObject tracksgo = new GameObject();
         tracksgo.name = "Tracks";
-        tracksgo.transform.parent = gameObject.transform;        
+        tracksgo.transform.parent = gameObject.transform;
 
         try
         {
@@ -77,11 +96,8 @@ public class MusicManager : MonoBehaviour {
         {
             //Should be impossible for this exception to happen because of the "typeof(AudioClip)" when loading in the resources.
             Debug.LogException(e);
-        }        
-
-        Play();
-
-	}
+        }
+    }
 
     void Play()
     {
@@ -99,6 +115,7 @@ public class MusicManager : MonoBehaviour {
             currentSong = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
             levelGenerator.GenerateLevel(currentSong);
             songTimeElapsed = currentSong.GetTrackLength();
+            sampleRate = currentSong.clip.frequency / beatWindow;
             currentSong.Play();
             InstantiateCubes();
             songPlaying = true;
@@ -132,6 +149,7 @@ public class MusicManager : MonoBehaviour {
         visualiserHolder.transform.position = transform.position;
         visualiserHolder.transform.parent = transform;
         visualiserHolder.name = "Visual Holder";
+
         
         for(int i = 0; i < visualiserCubes.Length; i++)
         {
@@ -160,7 +178,19 @@ public class MusicManager : MonoBehaviour {
 
         //take audio data from current song and create a visualiser.
         AudioVisualisation();
+        BeatDetection();
 	}
+
+    void BeatDetection()
+    {
+        currentSong.source.GetSpectrumData(beatSamples, 0, FFTWindow.Hanning);
+        
+        float E = sampleRate * 
+
+
+    }
+
+
 
     void AudioVisualisation()
     {
@@ -236,9 +266,9 @@ public class MusicManager : MonoBehaviour {
         6000-20000 - Brilliance
 
         0 - 2 = 86hz      -  86 - Sub bass
-        1 - 4 = 172hz     -  87 - 258  - Bass
-        2 - 8 = 344hz     -  259 - 602 - Low Midrange
-        3 - 16 = 688hz    -  603 - 1290  - Midrange
+        1 - 4 = 172hz     -  87 - 258  - Bass 
+        2 - 8 = 344hz     -  259 - 602 - Low Midrange  
+        3 - 16 = 688hz    -  603 - 1290  - Midrange  
         4 - 32 = 1376hz   -  1291 - 2666  - Midrange/ Upper Midrange
         5 - 64 = 2752hz   -  2667 - 5418  - Upper Midrange/ Presence
         6 - 128 = 5504hz  -  5419 - 10922  - Presence/Brilliance
