@@ -113,6 +113,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!20 &327263151 stripped
+Camera:
+  m_PrefabParentObject: {fileID: 20338599423251424, guid: da8fd49f9c364b34baac397122f2e37e,
+    type: 2}
+  m_PrefabInternal: {fileID: 1959570486}
 --- !u!1 &745247489
 GameObject:
   m_ObjectHideFlags: 0
@@ -211,13 +216,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7264d9796e9f8074b902dbe9b7e64781, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cam: {fileID: 327263151}
+  test: 0
+  songIndexToPlay: 0
   mixer: {fileID: 24300002, guid: b672dccc5e0ddcb41ad8bb4e6377566a, type: 2}
   visualiserCubePrefab: {fileID: 1434352026250452, guid: dd42732a1e1109642b53c881793b53ad,
     type: 2}
   visualiserHolder: {fileID: 0}
   startScale: 1
-  scaleMultiplier: 7
-  songIndexToPlay: 1
+  scaleMultiplier: 1
+  decrease: 0.002
+  increase: 1.5
+  useBuffer: 1
 --- !u!4 &1842328594
 Transform:
   m_ObjectHideFlags: 0
@@ -280,6 +290,10 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 4089518514901948, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
       propertyPath: m_RootOrder
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4520018405509482, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
+      propertyPath: m_LocalPosition.y
       value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []

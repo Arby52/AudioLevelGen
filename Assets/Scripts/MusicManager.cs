@@ -5,6 +5,10 @@ using UnityEngine.Audio;
 
 public class MusicManager : MonoBehaviour {
 
+    public Camera cam;
+
+    public float test;
+
     //Track loading and playback
     private Object[] objectsToLoad; // Loading in music tracks
     private List<Track> loadedAudioTracks = new List<Track>();
@@ -22,34 +26,32 @@ public class MusicManager : MonoBehaviour {
     //Visualiser Variables
     public GameObject visualiserCubePrefab;
     public GameObject visualiserHolder;
-    GameObject[] visualiserCubes = new GameObject[8];
+    GameObject[] visualiserCubes = new GameObject[59];
     public float startScale;
     public float scaleMultiplier;
 
     //Audio Frequency data stuff
     const int bands = 8;
     
-    float[] spectrumData = new float[512];
-    float[] spectrumDataHistory = new float[512];
-    float[] freqencyBand = new float[8];
-    float[] frequencyBandHighest = new float[8];
-    float[] bandBuffer = new float[8];
-    float[] bufferDecrease = new float[8];
+    float[] spectrumDataLeft = new float[512];
+    float[] spectrumDataRight = new float[512];
+
+    //64 bands
+    float[] freqencyBand = new float[64];    
+    float[] bandBuffer = new float[64];
+    float[] bufferDecrease = new float[64];
+    float[] frequencyBandHighest = new float[64];
+
     public float decrease;
     public float increase;
     public bool useBuffer;
 
     //Normalised Frequency Data
-    float[] frequencyBandNormalised = new float[8];  //Use this in gameplay and mechanics when not using buffer.
-    float[] bandBufferNormalised = new float[8];  //Use this in gameplay and mechanics when using buffer.      
+    float[] frequencyBandNormalised = new float[64];  //Use this in gameplay and mechanics when not using buffer.
+    float[] bandBufferNormalised = new float[64];  //Use this in gameplay and mechanics when using buffer.      
 
     //Beat Detection Variables
-    float[] beatSamples = new float[1024];
-    float[] beatSamplesNormalised = new float[1024];
-    float[] beatSamplesHighest = new float[1024];
-    int beatWindow = 1024;
-    int sampleRate;
-    int hopSize = 128;
+
 
     // Use this for initialization
     void Start () {
@@ -115,7 +117,6 @@ public class MusicManager : MonoBehaviour {
             currentSong = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
             levelGenerator.GenerateLevel(currentSong);
             songTimeElapsed = currentSong.GetTrackLength();
-            sampleRate = currentSong.clip.frequency / beatWindow;
             currentSong.Play();
             InstantiateCubes();
             songPlaying = true;
@@ -140,24 +141,35 @@ public class MusicManager : MonoBehaviour {
 
     void InstantiateCubes()
     {
+        float maxWidth = Vector2.Distance(cam.ScreenToWorldPoint(new Vector2(0, 0)), cam.ScreenToWorldPoint(new Vector2(0, cam.pixelWidth)));
+        float barWidth = maxWidth / visualiserCubes.Length;
         if(visualiserHolder != null)
         {
             DestroyImmediate(visualiserHolder);
         }
-        visualiserHolder = new GameObject();
-        Vector3 prevPos = new Vector3(transform.position.x - (currentSong.GetTrackLength() / 2), transform.position.y, 0);
-        visualiserHolder.transform.position = transform.position;
-        visualiserHolder.transform.parent = transform;
+        visualiserHolder = new GameObject();        
+        visualiserHolder.transform.position = cam.transform.position;
+        visualiserHolder.transform.parent = cam.transform;
         visualiserHolder.name = "Visual Holder";
 
-        
-        for(int i = 0; i < visualiserCubes.Length; i++)
+        Vector3 prevPos = new Vector3((cam.ScreenToWorldPoint(new Vector2(0, cam.pixelHeight/2)).x) - barWidth/2 , visualiserHolder.transform.position.y, 0);
+
+
+        for (int i = 0; i < visualiserCubes.Length; i++)
         {
             GameObject cube = (GameObject)Instantiate(visualiserCubePrefab);
-            cube.transform.position = prevPos + new Vector3(2, 0, 0);
+            cube.transform.localScale = new Vector3(barWidth, 1, 1);
+            cube.transform.position = prevPos + new Vector3(barWidth, 0, 0);
             prevPos = cube.transform.position;
             cube.transform.parent = visualiserHolder.transform;
             cube.name = "Cube " + i;
+
+            Shader shader = Shader.Find("Standard");
+            Material mat = new Material(shader);
+            mat.color = Color.green;
+            cube.GetComponent<Renderer>().material = mat;
+
+
             visualiserCubes[i] = cube;
         }
     }
@@ -183,9 +195,6 @@ public class MusicManager : MonoBehaviour {
 
     void BeatDetection()
     {
-        currentSong.source.GetSpectrumData(beatSamples, 0, FFTWindow.Hanning);
-        
-        float E = sampleRate * 
 
 
     }
@@ -198,23 +207,24 @@ public class MusicManager : MonoBehaviour {
         {
             //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
             
-            FFTWindow window = FFTWindow.Hanning;  //compare all windowing to see which works best for the system.
-            currentSong.source.GetSpectrumData(spectrumData, 0, window);
-            
+            FFTWindow window = FFTWindow.Blackman;  //compare all windowing to see which works best for the system.
+            currentSong.source.GetSpectrumData(spectrumDataLeft, 0, window);
+            currentSong.source.GetSpectrumData(spectrumDataRight, 1, window);
+
             CreateFrequencyBands();
             BandBuffer();
             CreateAudioBands();
 
-            for (int i = 0; i < freqencyBand.Length; i++)
+            for (int i = 0; i < visualiserCubes.Length; i++)
             {
                 if (visualiserCubes != null)
                 {
                     if (useBuffer)
                     {
-                        visualiserCubes[i].transform.localScale = new Vector3(1, (bandBuffer[i] * scaleMultiplier) + startScale, 1);
+                        visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (bandBuffer[i] * scaleMultiplier) + startScale, 1);
                     } else
                     {
-                        visualiserCubes[i].transform.localScale = new Vector3(1, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
+                        visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
                     }
                 }
             }
@@ -223,7 +233,7 @@ public class MusicManager : MonoBehaviour {
 
     void CreateAudioBands()
     {
-        for(int i = 0; i < 8; i++)
+        for(int i = 0; i < 64; i++)
         {
             //Set the band roof to the highest the band has been.
             if(freqencyBand[i] > frequencyBandHighest[i])
@@ -239,7 +249,7 @@ public class MusicManager : MonoBehaviour {
 
     void BandBuffer()
     {
-        for(int i = 0; i < 8; i++)
+        for(int i = 0; i < 64; i++)
         {
             if(freqencyBand[i] > bandBuffer[i])
             {
@@ -264,38 +274,35 @@ public class MusicManager : MonoBehaviour {
         2000-4000 - Upper Midrange
         4000-6000 - Presence
         6000-20000 - Brilliance
-
-        0 - 2 = 86hz      -  86 - Sub bass
-        1 - 4 = 172hz     -  87 - 258  - Bass 
-        2 - 8 = 344hz     -  259 - 602 - Low Midrange  
-        3 - 16 = 688hz    -  603 - 1290  - Midrange  
-        4 - 32 = 1376hz   -  1291 - 2666  - Midrange/ Upper Midrange
-        5 - 64 = 2752hz   -  2667 - 5418  - Upper Midrange/ Presence
-        6 - 128 = 5504hz  -  5419 - 10922  - Presence/Brilliance
-        7 - 256 = 11008hz -  10923 - 21930  - Brilliance
         */
 
         int count = 0;
+        int sampleBand = 1;
+        int power = 0;
 
-        for(int i = 0; i < 8; i++)
+        for(int i = 0; i < 64; i++)
         {
             float average = 0;
-            int sampleBand = (int)Mathf.Pow(2, i) * 2; //2, 4, 8, 16, etc.
 
-            if(i == 7)
+            if(i == 16 || i ==32 || i == 40 || i == 48 || i == 56)
             {
-                sampleBand += 2; //to hit the 512 smaples maximum.
+                power++;
+                sampleBand = (int)Mathf.Pow(2,power); //to hit the 512 smaples maximum.
+                if(power == 3)
+                {
+                    sampleBand -= 2;
+                }
             }
 
             for(int j = 0; j < sampleBand; j++)
             {
-                average += spectrumData[count] * (count+1);
+                average += spectrumDataLeft[count] + spectrumDataRight[count] * (count+1);
                 count++;
             }
 
             average /= count;
 
-            freqencyBand[i] = average * 10;
+            freqencyBand[i] = average * 80;
         }
     }
 }
