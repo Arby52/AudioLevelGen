@@ -6,11 +6,7 @@ using UnityEngine.Audio;
 public class MusicManager : MonoBehaviour {
 
     public Camera cam;
-
-    public float test;
-
-    public bool comparison;
-
+   
     //Track loading and playback
     private Object[] objectsToLoad; // Loading in music tracks
     private List<Track> loadedAudioTracks = new List<Track>();
@@ -71,13 +67,12 @@ public class MusicManager : MonoBehaviour {
 
         //Populating variables
         levelGenerator = GetComponent<LevelGenerator>();
-        previousSongIndex = songIndexToPlay;
-        
+        previousSongIndex = songIndexToPlay;        
 
         LoadTracks();
         Play();
 
-	}
+    }
 
     void LoadTracks()
     {
@@ -181,9 +176,12 @@ public class MusicManager : MonoBehaviour {
             Shader shader = Shader.Find("Standard");
             Material mat = new Material(shader);
 
-            mat.color = Color.green;
+            mat.color = Color.black;
             cube.GetComponent<Renderer>().material = mat;
             cube.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+
+            cube.GetComponent<Renderer>().material.color = currentCubeColor[i];
+            cube.GetComponent<Renderer>().material.SetColor("_EmissionColor", currentCubeColor[i]);
 
 
             visualiserCubes[i] = cube;
@@ -217,7 +215,7 @@ public class MusicManager : MonoBehaviour {
 
 
 
-    void AudioVisualisation()
+    void AudioVisualisation() //Theres a bug where the first song's visualised data will be really weird. the last 5 frequencies of low amplitude songs seem to be always peaked but only on the firs song played.
     {
         if (songPlaying)
         {
@@ -227,9 +225,9 @@ public class MusicManager : MonoBehaviour {
             currentSong.source.GetSpectrumData(spectrumDataLeft, 0, window);
             currentSong.source.GetSpectrumData(spectrumDataRight, 1, window);
 
-            CreateFrequencyBands8();
-            BandBuffer8();
-            CreateAudioBands8();
+            //CreateFrequencyBands8();
+            //BandBuffer8();
+            //CreateAudioBands8();
 
             CreateFrequencyBands64();
             BandBuffer64();
@@ -241,34 +239,19 @@ public class MusicManager : MonoBehaviour {
                 if (visualiserCubes != null)
                 {           
                     
-                    if (useBuffer)
+                    if (useBuffer) //outdated and kinda useless since Im not using scale anymore
                     {
-                        Color color;
-                        if (comparison)
+
+                        currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0f);
+
+                        if (frequencyBandNormalised64[i] > cutoff)
                         {
-                            
-                            if (frequencyBandNormalised64[i] > cutoff)
-                            {
-                                currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
-                            }
-                            else
-                            {
-                                currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
-                            }
-
-
-                        } else
+                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
+                            print(i + ": " + frequencyBandNormalised64[i]);
+                        }
+                        else
                         {
-
-                            if (frequencyBandNormalised64[i] > cutoff)
-                            {
-                                currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
-                            }
-                            else
-                            {
-                                currentCubeColor[i] = Color.HSVToRGB(iNormal, 0f, 0.05f);
-                            }
-
+                            currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
                         }
                         
                         visualiserCubes[i].GetComponent<Renderer>().material.color = currentCubeColor[i];
@@ -277,19 +260,21 @@ public class MusicManager : MonoBehaviour {
                         //visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (bandBuffer[i] * scaleMultiplier) + startScale, 1);
                     } else
                     {
-                        //print(bandBufferNormalised[i] * 255);
-                        Color color;
+
+                        currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0f);
+
                         if (frequencyBandNormalised64[i] > cutoff)
                         {
-                            color = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
+                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
+                            
                         }
                         else
                         {
-                            color = Color.HSVToRGB(iNormal, 0.9f, 0.05f);
+                            currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
                         }
 
-                        visualiserCubes[i].GetComponent<Renderer>().material.color = color;
-                        visualiserCubes[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", color);
+                        visualiserCubes[i].GetComponent<Renderer>().material.color = currentCubeColor[i];
+                        visualiserCubes[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", currentCubeColor[i]);
 
                         //visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
                     }
