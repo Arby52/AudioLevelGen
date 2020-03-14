@@ -24,7 +24,7 @@ public class MusicManager : MonoBehaviour {
     //Visualiser Variables
     public GameObject visualiserCubePrefab;
     public GameObject visualiserHolder;
-    GameObject[] visualiserCubes = new GameObject[64];  //if using 64 bands, set to 59 as the last 5 never really get hit
+    GameObject[] visualiserCubes = new GameObject[59];  //if using 64 bands, set to 59 as the last 5 never really get hit
     Color[] currentCubeColor = new Color[64];
     public float startScale;
     public float scaleMultiplier;
@@ -57,10 +57,13 @@ public class MusicManager : MonoBehaviour {
     float[] bandBufferNormalised8 = new float[8];  //Use this in gameplay and mechanics when using buffer.   
 
     float[] frequencyBandNormalised64 = new float[64];  
-    float[] bandBufferNormalised64 = new float[64];      
+    float[] bandBufferNormalised64 = new float[64];
 
     //Beat Detection Variables
-
+    float[] historyBuffer = new float[43];
+    int populatedHistory = 0;
+    private bool beat = false;
+    float historyConst = 0.8f;
 
     // Use this for initialization
     void Start () {
@@ -128,7 +131,7 @@ public class MusicManager : MonoBehaviour {
             currentSong.Play();
             InstantiateCubes();
             songPlaying = true;
-            print("Now Playing: " + currentSong.name);
+            //print("Now Playing: " + currentSong.name);
         }
     }
 
@@ -142,8 +145,6 @@ public class MusicManager : MonoBehaviour {
         {
             songIndexToPlay++;
         }
-        print(songIndexToPlay);
-
         Play();
     }
 
@@ -209,13 +210,93 @@ public class MusicManager : MonoBehaviour {
 
     void BeatDetection()
     {
+        //compute instant energy
+        float[] left = new float[2048]; 
+        float[] right = new float[2048];          
 
+        currentSong.source.GetSpectrumData(left, 0, FFTWindow.BlackmanHarris);
+        currentSong.source.GetSpectrumData(right, 1, FFTWindow.BlackmanHarris);
+
+        float instantEnergy = 0f;
+
+        for (int i = 0; i < left.Length; i++)
+        {
+            instantEnergy += Mathf.Pow(left[i], 2) + Mathf.Pow(right[i], 2);            
+        }
+
+        historyBuffer[0] = instantEnergy;
+        populatedHistory++;
+
+        if(populatedHistory >= historyBuffer.Length)
+        {
+            populatedHistory = historyBuffer.Length;
+        }
+
+
+        //local average energy
+        float localAverageEnergy = 0f;
+        
+        for(int i = 0; i < populatedHistory; i++)
+        {
+            localAverageEnergy += historyBuffer[i];
+        }
+
+        localAverageEnergy /= populatedHistory;
+
+
+        //variance
+        float variance = 0;
+        for(int i = 0; i < populatedHistory; i++)
+        {
+            variance += Mathf.Pow((historyBuffer[i] - localAverageEnergy),2);
+        }
+
+        if (populatedHistory > 0)
+        {
+            variance /= populatedHistory;
+        }
+
+        //constant
+        float constant = (float)((-0.0025714 * variance) + 1.51422857);
+
+
+        //shift data on the buffer
+        float[] shiftHistory = new float[historyBuffer.Length];
+
+        for(int i = 0; i < historyBuffer.Length-1; i++)
+        {
+            shiftHistory[i + 1] = historyBuffer[i];
+        }
+
+        shiftHistory[0] = instantEnergy;
+
+        for(int i = 0; i < historyBuffer.Length; i++)
+        {
+            historyBuffer[i] = shiftHistory[i];
+        }        
+
+        //check for beat. TODO:: Maybe
+        if(instantEnergy > (constant * localAverageEnergy))
+        {
+            if (!beat)
+            {
+                print("Beat");
+                beat = true;
+            }
+        } else
+        {
+            if (beat)
+            {
+                beat = false;
+            }
+            print("no beat");
+        }
 
     }
 
 
 
-    void AudioVisualisation() //Theres a bug where the first song's visualised data will be really weird. the last 5 frequencies of low amplitude songs seem to be always peaked but only on the firs song played.
+    void AudioVisualisation() //Theres a bug where the first song's visualised data will be really weird. the last 5 frequencies of low amplitude songs seem to be always peaked but only on the first song played.
     {
         if (songPlaying)
         {
@@ -247,7 +328,6 @@ public class MusicManager : MonoBehaviour {
                         if (frequencyBandNormalised64[i] > cutoff)
                         {
                             currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
-                            print(i + ": " + frequencyBandNormalised64[i]);
                         }
                         else
                         {
