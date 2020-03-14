@@ -211,8 +211,8 @@ public class MusicManager : MonoBehaviour {
     void BeatDetection()
     {
         //compute instant energy
-        float[] left = new float[2048]; 
-        float[] right = new float[2048];          
+        float[] left = new float[1024]; 
+        float[] right = new float[1024];          
 
         currentSong.source.GetSpectrumData(left, 0, FFTWindow.BlackmanHarris);
         currentSong.source.GetSpectrumData(right, 1, FFTWindow.BlackmanHarris);
@@ -238,7 +238,8 @@ public class MusicManager : MonoBehaviour {
         
         for(int i = 0; i < populatedHistory; i++)
         {
-            localAverageEnergy += historyBuffer[i];
+          localAverageEnergy += Mathf.Pow(historyBuffer[i],2); 
+          //  localAverageEnergy += historyBuffer[i]; //unsure if need to pow^2 or not. not seems to work but all the algorithms say i need to.
         }
 
         localAverageEnergy /= populatedHistory;
@@ -257,7 +258,7 @@ public class MusicManager : MonoBehaviour {
         }
 
         //constant
-        float constant = (float)((-0.0025714 * variance) + 1.51422857);
+        float constant = (float)((-0.0025714 * variance) + 1.5142857);
 
 
         //shift data on the buffer
