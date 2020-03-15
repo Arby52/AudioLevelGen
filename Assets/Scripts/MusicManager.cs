@@ -1,5 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -79,19 +81,20 @@ public class MusicManager : MonoBehaviour {
 
     void LoadTracks()
     {
+
         GameObject tracksgo = new GameObject();
         tracksgo.name = "Tracks";
         tracksgo.transform.parent = gameObject.transform;
 
-        try
-        {
+        if (Application.isEditor)
+        {        
+
             objectsToLoad = Resources.LoadAll("Music", typeof(AudioClip));
 
             print(objectsToLoad.Length + " objects loaded");
 
             foreach (var t in objectsToLoad)
             {
-                //Possibly load the audio clips into a prefab to set the loadtype to streaming.
                 GameObject go = new GameObject();
                 Track track = go.AddComponent<Track>();
                 track.clip = (AudioClip)t;
@@ -101,15 +104,53 @@ public class MusicManager : MonoBehaviour {
                 loadedAudioTracks.Add(track);
 
                 go.transform.parent = tracksgo.transform;
-
-            }
-            playlist = new Playlist(loadedAudioTracks);
-        }
-        catch (System.InvalidCastException e)
+            }              
+            
+        } else
         {
-            //Should be impossible for this exception to happen because of the "typeof(AudioClip)" when loading in the resources.
-            Debug.LogException(e);
+
+            FileInfo[] audioFiles;
+            List<string> extensions = new List<string> { ".ogg", ".wav", ".mp3"};
+            string path = "./music";
+
+            var info = new DirectoryInfo(path);
+            audioFiles = info.GetFiles()
+                .Where(f => extensions.Contains(Path.GetExtension(f.Name))) //make sure to only add files with the approved extensions
+                .ToArray();
+
+            foreach(var i in audioFiles)
+            {
+                StartCoroutine(LoadFile(i.FullName, tracksgo));
+            }
+
         }
+
+        playlist = new Playlist(loadedAudioTracks);
+    }
+
+    IEnumerator LoadFile(string _path, GameObject _tracksgo)
+    {
+        WWW www = new WWW("file://" + _path);
+        AudioClip clip = www.GetAudioClip(false);
+
+        while (clip.loadState != AudioDataLoadState.Loaded)
+            yield return www;
+
+        clip.name = Path.GetFileName(_path);
+
+        GameObject go = new GameObject();
+        Track track = go.AddComponent<Track>();
+        track.clip = clip;
+        track.name = clip.name;
+        track.mixer = mixer;
+        track.Initialise();
+        loadedAudioTracks.Add(track);
+
+        go.transform.parent = _tracksgo.transform;
+
+        Play();
+
+
     }
 
     void Play()
@@ -132,7 +173,7 @@ public class MusicManager : MonoBehaviour {
             InstantiateCubes();
             songPlaying = true;
             //print("Now Playing: " + currentSong.name);
-        }
+        } 
     }
 
     void PlayNextSong()
@@ -196,6 +237,11 @@ public class MusicManager : MonoBehaviour {
             PlayNextSong();
         }
 
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
+
         songTimeElapsed -= Time.deltaTime;
         if(songTimeElapsed == 0)
         {
@@ -204,8 +250,11 @@ public class MusicManager : MonoBehaviour {
         //print("Time Left: " + songTimeElapsed);        
 
         //take audio data from current song and create a visualiser.
-        AudioVisualisation();
-        BeatDetection();
+        if (currentSong != null)
+        {
+            AudioVisualisation();
+            BeatDetection();
+        }
 	}
 
     void BeatDetection()

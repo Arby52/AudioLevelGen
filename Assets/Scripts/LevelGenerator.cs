@@ -10,7 +10,7 @@ public class LevelGenerator : MonoBehaviour {
 
     GameObject levelFloor;
     GameObject levelBar;
-    private float levelLength;
+    private float levelLength = 300;
 
     //Interpolation Variables
     private float lerpTime;
@@ -21,14 +21,17 @@ public class LevelGenerator : MonoBehaviour {
     private string levelFloorNameString = "levelFloor";
     private string levelBarNameString = "levelBar";
 
+    private bool isGenerated = false;
+
     public void GenerateLevel(Track _track)
     {
-        
+        isGenerated = false;
+
         if (gameObject.transform.Find(levelFloorNameString))
         {
             Destroy(gameObject.transform.Find("levelFloor").gameObject);
-        }           
-
+        }
+        print(_track);
         track = _track;
         levelLength = _track.GetTrackLength();
         lerpTime = 0;
@@ -65,12 +68,17 @@ public class LevelGenerator : MonoBehaviour {
 
         player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -1);
 
-        lerpTime = 0;        
+        lerpTime = 0;
+
+        isGenerated = true;
     }
 
     public void Update()
     {
-        lerpTime += Time.deltaTime / levelLength;
-        levelBar.transform.position = Vector3.Lerp(levelBarStartPos, levelBarEndPos, lerpTime);
+        if (isGenerated)
+        {
+            lerpTime += Time.deltaTime / levelLength;
+            levelBar.transform.position = Vector3.Lerp(levelBarStartPos, levelBarEndPos, lerpTime);
+        }
     }
 }
