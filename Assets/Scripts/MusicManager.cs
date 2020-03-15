@@ -110,7 +110,7 @@ public class MusicManager : MonoBehaviour {
         {
 
             FileInfo[] audioFiles;
-            List<string> extensions = new List<string> { ".ogg", ".wav", ".mp3"};
+            List<string> extensions = new List<string> { ".ogg", ".wav"};
             string path = "./music";
 
             var info = new DirectoryInfo(path);
@@ -377,7 +377,8 @@ public class MusicManager : MonoBehaviour {
 
                         if (frequencyBandNormalised64[i] > cutoff)
                         {
-                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
+                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0.7f);
+                            //currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
                         }
                         else
                         {
@@ -395,7 +396,8 @@ public class MusicManager : MonoBehaviour {
 
                         if (frequencyBandNormalised64[i] > cutoff)
                         {
-                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
+                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0.7f);
+                          //currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
                             
                         }
                         else
