@@ -5,6 +5,13 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
 
+public class BeatSubband
+{    
+    public float instantEnergy = 0;
+    public float[] historyBuffer = new float[43];
+    public int populatedHistory = 0;
+}
+
 public class MusicManager : MonoBehaviour {
 
     public Camera cam;
@@ -62,10 +69,7 @@ public class MusicManager : MonoBehaviour {
     float[] bandBufferNormalised64 = new float[64];
 
     //Beat Detection Variables
-    float[] historyBuffer = new float[43];
-    int populatedHistory = 0;
-    private bool beat = false;
-    float historyConst = 0.8f;
+    BeatSubband[] beatSubbands = new BeatSubband[32];
 
     // Use this for initialization
     void Start () {
@@ -76,6 +80,11 @@ public class MusicManager : MonoBehaviour {
 
         LoadTracks();
         Play();
+        
+        for(int i = 0; i < beatSubbands.Length; i++)
+        {
+            beatSubbands[i] = new BeatSubband();
+        }
 
     }
 
@@ -259,88 +268,84 @@ public class MusicManager : MonoBehaviour {
 
     void BeatDetection()
     {
+        float[] beatSpecL = new float[1024];
+        float[] beatSpecR = new float[1024];
+        float[] beatSpecAdded = new float[1024];
+
+        currentSong.source.GetSpectrumData(beatSpecL, 0, FFTWindow.BlackmanHarris);
+        currentSong.source.GetSpectrumData(beatSpecR, 1, FFTWindow.BlackmanHarris);
+
+        bool beat = false;
+
+        for(int i = 0; i < beatSpecAdded.Length; i++)
+        {
+            beatSpecAdded[i] = beatSpecL[i] + beatSpecR[i];
+        }
+
         //compute instant energy
-        float[] left = new float[1024]; 
-        float[] right = new float[1024];          
-
-        currentSong.source.GetSpectrumData(left, 0, FFTWindow.BlackmanHarris);
-        currentSong.source.GetSpectrumData(right, 1, FFTWindow.BlackmanHarris);
-
-        float instantEnergy = 0f;
-
-        for (int i = 0; i < left.Length; i++)
+        for (int i = 0; i < beatSubbands.Length; i++)
         {
-            instantEnergy += Mathf.Pow(left[i], 2) + Mathf.Pow(right[i], 2);            
-        }
 
-        historyBuffer[0] = instantEnergy;
-        populatedHistory++;
-
-        if(populatedHistory >= historyBuffer.Length)
-        {
-            populatedHistory = historyBuffer.Length;
-        }
-
-
-        //local average energy
-        float localAverageEnergy = 0f;
-        
-        for(int i = 0; i < populatedHistory; i++)
-        {
-          localAverageEnergy += Mathf.Pow(historyBuffer[i],2); 
-          //  localAverageEnergy += historyBuffer[i]; //unsure if need to pow^2 or not. not seems to work but all the algorithms say i need to.
-        }
-
-        localAverageEnergy /= populatedHistory;
-
-
-        //variance
-        float variance = 0;
-        for(int i = 0; i < populatedHistory; i++)
-        {
-            variance += Mathf.Pow((historyBuffer[i] - localAverageEnergy),2);
-        }
-
-        if (populatedHistory > 0)
-        {
-            variance /= populatedHistory;
-        }
-
-        //constant
-        float constant = (float)((-0.0025714 * variance) + 1.5142857);
-
-
-        //shift data on the buffer
-        float[] shiftHistory = new float[historyBuffer.Length];
-
-        for(int i = 0; i < historyBuffer.Length-1; i++)
-        {
-            shiftHistory[i + 1] = historyBuffer[i];
-        }
-
-        shiftHistory[0] = instantEnergy;
-
-        for(int i = 0; i < historyBuffer.Length; i++)
-        {
-            historyBuffer[i] = shiftHistory[i];
-        }        
-
-        //check for beat. TODO:: Maybe
-        if(instantEnergy > (constant * localAverageEnergy))
-        {
-            if (!beat)
+            for (int j = i * 32; j < (i+1) * 32; j++)
             {
-                print("Beat");
+                beatSubbands[i].instantEnergy += Mathf.Pow(beatSpecAdded[j],2);
+            }
+
+            beatSubbands[i].instantEnergy /= 32;
+
+            beatSubbands[i].historyBuffer[0] = beatSubbands[i].instantEnergy;
+            beatSubbands[i].populatedHistory++;
+
+            if (beatSubbands[i].populatedHistory >= beatSubbands[i].historyBuffer.Length)
+            {
+                beatSubbands[i].populatedHistory = beatSubbands[i].historyBuffer.Length;
+            }
+
+            //local average energy
+            float localAverageEnergy = 0f;
+
+            for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
+            {
+                localAverageEnergy += beatSubbands[i].historyBuffer[j];
+                //  localAverageEnergy += historyBuffer[i]; //unsure if need to pow^2 or not. not seems to work but all the algorithms say i need to.
+            }
+
+            localAverageEnergy /= 43;
+
+            //constant
+            float constant = 250;
+
+            //shift data on the buffer
+            float[] shiftHistory = new float[beatSubbands[i].historyBuffer.Length];
+
+            for (int j = 0; j < beatSubbands[i].historyBuffer.Length - 1; j++)
+            {
+                shiftHistory[j + 1] = beatSubbands[i].historyBuffer[j];
+            }
+
+            shiftHistory[0] = beatSubbands[i].instantEnergy;
+
+            for (int j = 0; j < beatSubbands[i].historyBuffer.Length; j++)
+            {
+                beatSubbands[i].historyBuffer[j] = shiftHistory[j];
+            }
+
+            //check for beat. 
+            if (beatSubbands[i].instantEnergy > (constant * localAverageEnergy))
+            {
                 beat = true;
             }
-        } else
+        }
+
+        if (beat)
         {
-            if (beat)
-            {
-                beat = false;
-            }
+            print("Beat");
+        }
+        else
+        {
             print("no beat");
         }
+        beat = false;
 
     }
 
@@ -352,7 +357,7 @@ public class MusicManager : MonoBehaviour {
         {
             //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
             
-            FFTWindow window = FFTWindow.Blackman;  //compare all windowing to see which works best for the system.
+            FFTWindow window = FFTWindow.BlackmanHarris;  //compare all windowing to see which works best for the system.
             currentSong.source.GetSpectrumData(spectrumDataLeft, 0, window);
             currentSong.source.GetSpectrumData(spectrumDataRight, 1, window);
 
@@ -362,7 +367,7 @@ public class MusicManager : MonoBehaviour {
 
             CreateFrequencyBands64();
             BandBuffer64();
-            CreateAudioBands64();            
+            CreateAudioBands64();
 
             for (int i = 0; i < visualiserCubes.Length; i++)
             {
@@ -466,7 +471,7 @@ public class MusicManager : MonoBehaviour {
         for (int i = 0; i < 8; i++) //algorithm by peer play
         {
             float average = 0;
-            int sampleBand = (int)Mathf.Pow(2, i) * 2;
+            int sampleBand = (int)Mathf.Pow(2, i) * 2; //width of the current band
 
             if (i == 7)
             {  
