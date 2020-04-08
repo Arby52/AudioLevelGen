@@ -30,6 +30,9 @@ public class MusicManager : MonoBehaviour {
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
 
+    [Range(0,250)]
+    public float constant;
+
     //Visualiser Variables
     public GameObject visualiserCubePrefab;
     public GameObject visualiserHolder;
@@ -288,7 +291,7 @@ public class MusicManager : MonoBehaviour {
 
             for (int j = i * 32; j < (i+1) * 32; j++)
             {
-                beatSubbands[i].instantEnergy += Mathf.Pow(beatSpecAdded[j],2);
+                beatSubbands[i].instantEnergy += beatSpecAdded[j];
             }
 
             beatSubbands[i].instantEnergy /= 32;
@@ -313,7 +316,7 @@ public class MusicManager : MonoBehaviour {
             localAverageEnergy /= 43;
 
             //constant
-            float constant = 250;
+            
 
             //shift data on the buffer
             float[] shiftHistory = new float[beatSubbands[i].historyBuffer.Length];
@@ -345,7 +348,8 @@ public class MusicManager : MonoBehaviour {
         {
             print("no beat");
         }
-        beat = false;
+
+        
 
     }
 
