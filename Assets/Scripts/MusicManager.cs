@@ -15,12 +15,11 @@ public class BeatSubband
 public class MusicManager : MonoBehaviour {
 
     public Camera cam;
-   
-    //Track loading and playback
-    private Object[] objectsToLoad; // Loading in music tracks
-    private List<Track> loadedAudioTracks = new List<Track>();
-    public Playlist playlist { get; private set; }
 
+    //Track loading and playback
+    TrackLoader trackLoader;
+
+    public Playlist playlist;
     Track currentSong;
     public int songIndexToPlay = 0;
     private int previousSongIndex;
@@ -34,6 +33,7 @@ public class MusicManager : MonoBehaviour {
     public float constant;
 
     //Visualiser Variables
+    GameObject levelFloor;
     public GameObject visualiserCubePrefab;
     public GameObject visualiserHolder;
     GameObject[] visualiserCubes = new GameObject[59];  //if using 64 bands, set to 59 as the last 5 never really get hit
@@ -79,9 +79,10 @@ public class MusicManager : MonoBehaviour {
 
         //Populating variables
         levelGenerator = GetComponent<LevelGenerator>();
-        previousSongIndex = songIndexToPlay;        
+        previousSongIndex = songIndexToPlay;
 
-        LoadTracks();
+        trackLoader = gameObject.AddComponent<TrackLoader>();
+        trackLoader.LoadTracks(mixer, ref playlist);
         Play();
         
         for(int i = 0; i < beatSubbands.Length; i++)
@@ -91,79 +92,7 @@ public class MusicManager : MonoBehaviour {
 
     }
 
-    void LoadTracks()
-    {
-
-        GameObject tracksgo = new GameObject();
-        tracksgo.name = "Tracks";
-        tracksgo.transform.parent = gameObject.transform;
-
-        if (Application.isEditor)
-        {        
-
-            objectsToLoad = Resources.LoadAll("Music", typeof(AudioClip));
-
-            print(objectsToLoad.Length + " objects loaded");
-
-            foreach (var t in objectsToLoad)
-            {
-                GameObject go = new GameObject();
-                Track track = go.AddComponent<Track>();
-                track.clip = (AudioClip)t;
-                track.name = t.name;
-                track.mixer = mixer;
-                track.Initialise();
-                loadedAudioTracks.Add(track);
-
-                go.transform.parent = tracksgo.transform;
-            }              
-            
-        } else
-        {
-
-            FileInfo[] audioFiles;
-            List<string> extensions = new List<string> { ".ogg", ".wav"};
-            string path = "./music";
-
-            var info = new DirectoryInfo(path);
-            audioFiles = info.GetFiles()
-                .Where(f => extensions.Contains(Path.GetExtension(f.Name))) //make sure to only add files with the approved extensions
-                .ToArray();
-
-            foreach(var i in audioFiles)
-            {
-                StartCoroutine(LoadFile(i.FullName, tracksgo));
-            }
-
-        }
-
-        playlist = new Playlist(loadedAudioTracks);
-    }
-
-    IEnumerator LoadFile(string _path, GameObject _tracksgo)
-    {
-        WWW www = new WWW("file://" + _path);
-        AudioClip clip = www.GetAudioClip(false);
-
-        while (clip.loadState != AudioDataLoadState.Loaded)
-            yield return www;
-
-        clip.name = Path.GetFileName(_path);
-
-        GameObject go = new GameObject();
-        Track track = go.AddComponent<Track>();
-        track.clip = clip;
-        track.name = clip.name;
-        track.mixer = mixer;
-        track.Initialise();
-        loadedAudioTracks.Add(track);
-
-        go.transform.parent = _tracksgo.transform;
-
-        Play();
-
-
-    }
+   
 
     void Play()
     {
@@ -179,7 +108,7 @@ public class MusicManager : MonoBehaviour {
 
             //Play current track
             currentSong = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
-            levelGenerator.GenerateLevel(currentSong);
+            levelFloor = levelGenerator.GenerateLevel(currentSong);
             songTimeElapsed = currentSong.GetTrackLength();
             currentSong.Play();
             InstantiateCubes();
@@ -205,13 +134,14 @@ public class MusicManager : MonoBehaviour {
     {
         float maxWidth = Vector2.Distance(cam.ScreenToWorldPoint(new Vector2(0, 0)), cam.ScreenToWorldPoint(new Vector2(0, cam.pixelWidth)));
         float barWidth = maxWidth / visualiserCubes.Length;
-        float barHeight = Vector2.Distance(cam.ScreenToWorldPoint(new Vector2(0, 0)), cam.ScreenToWorldPoint(new Vector2(0, cam.pixelHeight)));
+        //float barHeight = Vector2.Distance(cam.ScreenToWorldPoint(new Vector2(0, 0)), cam.ScreenToWorldPoint(new Vector2(0, cam.pixelHeight)));
+        float barHeight = levelFloor.transform.localScale.y;
         if(visualiserHolder != null)
         {
             DestroyImmediate(visualiserHolder);
         }
         visualiserHolder = new GameObject();        
-        visualiserHolder.transform.position = cam.transform.position;
+        visualiserHolder.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z);
         visualiserHolder.transform.parent = cam.transform;
         visualiserHolder.name = "Visual Holder";
 
@@ -221,6 +151,7 @@ public class MusicManager : MonoBehaviour {
         for (int i = 0; i < visualiserCubes.Length; i++)
         {
             GameObject cube = (GameObject)Instantiate(visualiserCubePrefab);
+            Destroy(cube.GetComponent<BoxCollider>());
             cube.transform.localScale = new Vector3(barWidth, barHeight, 1);
             cube.transform.position = prevPos + new Vector3(barWidth, 0, 0);
             prevPos = cube.transform.position;
@@ -266,6 +197,14 @@ public class MusicManager : MonoBehaviour {
         {
             AudioVisualisation();
             BeatDetection();
+        }
+
+        if(levelFloor != null)
+        {
+            foreach(var cube in visualiserCubes)
+            {
+                cube.transform.position = new Vector3(cube.transform.position.x, levelFloor.transform.position.y, -1);
+            }
         }
 	}
 

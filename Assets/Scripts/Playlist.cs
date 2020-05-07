@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Playlist : MonoBehaviour {
+public class Playlist  {
 
     public List<Track> audioTracks { get; private set; }
 
