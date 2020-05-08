@@ -3,9 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class LevelGenerator : MonoBehaviour {
-
-    public GameObject player;
+    
+    //prefabs
     public GameObject backgroundPFab;
+
+    public GameObject stairsStartPFab;
+    public GameObject stairsMiddlePFab;
+    public GameObject stairsEndPFab;
+
     private Track track;
     
     GameObject levelFloor;
@@ -21,12 +26,142 @@ public class LevelGenerator : MonoBehaviour {
     private string levelFloorNameString = "levelFloor";
     private string levelBarNameString = "levelBar";
 
+    Material terrainMaterial;
+    Shader shader;
+
+    List<GameObject> cellList = new List<GameObject>();
+
     private bool isGenerated = false;
 
-    public GameObject GenerateLevel(Track _track)
+    private void Awake()
+    {
+        shader = Shader.Find("Standard");
+        terrainMaterial = new Material(shader);
+        terrainMaterial.color = Color.green;
+    }
+
+    public GameObject GenerateLevel(Track _track, ref GameObject _player)
     {
         isGenerated = false;
 
+        CreateFloor(_track, ref _player);
+        CreateCells();
+
+        isGenerated = true;
+        return levelFloor;
+    }
+
+    void CreateCells()
+    {
+
+        //delete all cells if there are any from before
+        if (cellList.Count >= 0) {
+            for (int i = 0; i < cellList.Count; i++)
+            {
+                Destroy(cellList[i]);
+            }
+        }
+        cellList.Clear();
+        
+
+        float startBuffer = levelBar.transform.localScale.x;
+        float endBuffer = levelBar.transform.localScale.x;
+        Vector3 firstCellStart = new Vector3(levelBar.transform.position.x + (levelBar.transform.localScale.x/2) + Cell.width/2, 1, 1);
+
+        if(startBuffer + endBuffer + (Cell.width*2) > levelLength)
+        {
+            //maybe add a smaller adjustable cell?
+            return;
+        }
+
+        int numOfCells = Mathf.FloorToInt(levelLength / Cell.width + startBuffer + endBuffer);
+        float remainingLength = levelLength - startBuffer;
+        print(numOfCells);
+
+        Cell.CellClass previousType = Cell.CellClass.End;
+
+        for (int i = 0; i < numOfCells; i++)
+        {
+            GameObject cellObj = new GameObject();
+            cellObj.transform.position = new Vector3(firstCellStart.x + (Cell.width * i), firstCellStart.y, firstCellStart.z);
+            cellObj.transform.parent = levelFloor.transform;
+
+            Cell cell;
+            cell = cellObj.AddComponent<Cell>();
+
+            int cellVarient = Random.Range(0, 0);
+
+            bool breakOutOfLoop = false;            
+
+            switch (previousType)
+            {
+                case Cell.CellClass.Start: //Make a middle one
+                    cell.cellClassType = Cell.CellClass.Middle;
+                    previousType = Cell.CellClass.Middle;
+
+                    switch (cellVarient)
+                    {
+                        case 0:
+                            cell.cellVarientType = Cell.CellVarient.Stairs;
+                            Instantiate(stairsMiddlePFab, cellObj.transform);
+                            break;
+                    }
+
+                    break;
+
+                case Cell.CellClass.Middle: //Make an end one
+                    cell.cellClassType = Cell.CellClass.End;
+                    previousType = Cell.CellClass.End;
+
+                    switch (cellVarient)
+                    {
+                        case 0:
+                            cell.cellVarientType = Cell.CellVarient.Stairs;
+                            Instantiate(stairsEndPFab, cellObj.transform);
+                            break;
+                    }
+
+
+                    break;
+
+                case Cell.CellClass.End: //Make a start one
+                    if (remainingLength <= (Cell.width*3) + endBuffer)
+                    {
+                        Destroy(cellObj);
+                        breakOutOfLoop = true;                        
+                    } else
+                    {
+                        cell.cellClassType = Cell.CellClass.Start;
+                        previousType = Cell.CellClass.Start;
+
+                        switch (cellVarient)
+                        {
+                            case 0:
+                                cell.cellVarientType = Cell.CellVarient.Stairs;
+                                Instantiate(stairsStartPFab, cellObj.transform);
+                                break;
+                        }
+
+                    }
+                    break;
+            }
+
+            if (breakOutOfLoop)
+            {
+                break;
+            }
+
+            remainingLength -= Cell.width;
+            cellList.Add(cellObj);
+        }
+
+
+
+
+    }
+
+    void CreateFloor(Track _track, ref GameObject _player)
+    {
         if (gameObject.transform.Find(levelFloorNameString))
         {
             Destroy(gameObject.transform.Find(levelFloorNameString).gameObject);
@@ -56,16 +191,15 @@ public class LevelGenerator : MonoBehaviour {
         //levelFloor.GetComponent<Renderer>().enabled = false;
         levelFloor.tag = "Ground";
 
-        //Add and Create Material and Shader for floor
-        Shader shader = Shader.Find("Standard");
+        //Add and Create Material and Shader for floor        
         Material floorMaterial = new Material(shader);
         floorMaterial.color = Color.red;
         levelFloor.GetComponent<Renderer>().material = floorMaterial;
 
         levelBar = GameObject.CreatePrimitive(PrimitiveType.Cube);
         levelBar.name = levelBarNameString;
-        float barWidth = levelLength / 20;
-        levelBarStartPos = levelFloor.transform.position + new Vector3(-levelLength / 2 + barWidth / 2, 0, -4);        
+        float barWidth = levelLength / 40;
+        levelBarStartPos = levelFloor.transform.position + new Vector3(-levelLength / 2 + barWidth / 2, 0, -4);
         levelBarEndPos = levelFloor.transform.position + new Vector3(levelLength / 2 - barWidth / 2, 0, -4);
         levelBar.transform.position = levelBarStartPos;
         levelBar.transform.localScale = new Vector3(barWidth, 1, 1);
@@ -74,7 +208,7 @@ public class LevelGenerator : MonoBehaviour {
         GameObject barHiderL = Instantiate(backgroundPFab);
         barHiderL.name = "hiderL";
         barHiderL.transform.localScale = new Vector3(30, levelBar.transform.localScale.y, 0.5f);
-        barHiderL.transform.position = new Vector3((levelFloor.transform.position.x - levelFloor.transform.localScale.x/2) - barHiderL.transform.localScale.x/2, levelBar.transform.position.y, -2);
+        barHiderL.transform.position = new Vector3((levelFloor.transform.position.x - levelFloor.transform.localScale.x / 2) - barHiderL.transform.localScale.x / 2, levelBar.transform.position.y, -2);
         barHiderL.transform.SetParent(transform);
 
         GameObject barHiderR = Instantiate(backgroundPFab);
@@ -84,17 +218,14 @@ public class LevelGenerator : MonoBehaviour {
         barHiderR.transform.SetParent(transform);
 
         //Add and Create Material and Shader for bar
-        Material barMaterial = new Material(shader);
-        barMaterial.color = Color.green;
-        levelBar.GetComponent<Renderer>().material = barMaterial;
+        
+        levelBar.GetComponent<Renderer>().material = terrainMaterial;
+        levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+        levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
 
-        player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -2);
+        _player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -2);
 
         lerpTime = 0;
-
-        isGenerated = true;
-
-        return levelFloor;
     }
 
     public void Update()

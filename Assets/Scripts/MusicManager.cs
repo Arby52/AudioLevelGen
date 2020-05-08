@@ -14,6 +14,7 @@ public class BeatSubband
 
 public class MusicManager : MonoBehaviour {
 
+    public GameObject player;
     public Camera cam;
 
     //Track loading and playback
@@ -90,9 +91,7 @@ public class MusicManager : MonoBehaviour {
             beatSubbands[i] = new BeatSubband();
         }
 
-    }
-
-   
+    }   
 
     void Play()
     {
@@ -108,7 +107,7 @@ public class MusicManager : MonoBehaviour {
 
             //Play current track
             currentSong = playlist.audioTracks[songIndexToPlay]; //Store the object once so it dosen't have to search the array multiple times. Negligable performance benefit but still a benefit.
-            levelFloor = levelGenerator.GenerateLevel(currentSong);
+            levelFloor = levelGenerator.GenerateLevel(currentSong, ref player);
             songTimeElapsed = currentSong.GetTrackLength();
             currentSong.Play();
             InstantiateCubes();
@@ -142,7 +141,7 @@ public class MusicManager : MonoBehaviour {
         }
         visualiserHolder = new GameObject();        
         visualiserHolder.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z);
-        visualiserHolder.transform.parent = cam.transform;
+        //visualiserHolder.transform.parent = cam.transform;
         visualiserHolder.name = "Visual Holder";
 
         Vector3 prevPos = new Vector3((cam.ScreenToWorldPoint(new Vector2(0, cam.pixelHeight/2)).x) - barWidth/2 , visualiserHolder.transform.position.y, 0);
@@ -204,6 +203,7 @@ public class MusicManager : MonoBehaviour {
             foreach(var cube in visualiserCubes)
             {
                 cube.transform.position = new Vector3(cube.transform.position.x, levelFloor.transform.position.y, -1);
+                visualiserHolder.transform.position = new Vector3(cam.transform.position.x, visualiserHolder.transform.position.y, visualiserHolder.transform.position.z);
             }
         }
 	}
@@ -281,11 +281,11 @@ public class MusicManager : MonoBehaviour {
 
         if (beat)
         {
-            print("Beat");
+            //print("Beat");
         }
         else
         {
-            print("no beat");
+            //print("no beat");
         }
 
         

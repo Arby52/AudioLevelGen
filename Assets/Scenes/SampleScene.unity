@@ -124,6 +124,90 @@ GameObject:
   m_PrefabParentObject: {fileID: 1960821991103890, guid: da8fd49f9c364b34baac397122f2e37e,
     type: 2}
   m_PrefabInternal: {fileID: 1959570486}
+--- !u!1 &1801714704
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 1801714708}
+  - component: {fileID: 1801714707}
+  - component: {fileID: 1801714706}
+  - component: {fileID: 1801714705}
+  m_Layer: 0
+  m_Name: Cube (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!23 &1801714705
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1801714704}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_Materials:
+  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+--- !u!65 &1801714706
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1801714704}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!33 &1801714707
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1801714704}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &1801714708
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 1801714704}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 19.520002, y: 20.595001, z: 0}
+  m_LocalScale: {x: 10, y: 5.1296577, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1831206027 stripped
 GameObject:
   m_PrefabParentObject: {fileID: 1975229904228364, guid: da8fd49f9c364b34baac397122f2e37e,
@@ -157,8 +241,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7264d9796e9f8074b902dbe9b7e64781, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  player: {fileID: 1831206027}
   cam: {fileID: 327263151}
-  playlist: {fileID: 0}
   songIndexToPlay: 0
   mixer: {fileID: 24300002, guid: b672dccc5e0ddcb41ad8bb4e6377566a, type: 2}
   constant: 0
@@ -195,8 +279,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 05da03cf562575b49adaf31ecd331345, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  player: {fileID: 1831206027}
   backgroundPFab: {fileID: 1734546766}
+  stairsStartPFab: {fileID: 1263194562246750, guid: c484f39729cdcfc48aab6e841da0b689,
+    type: 2}
+  stairsMiddlePFab: {fileID: 1245149065388090, guid: 7a1e4788b0da221479b94d5e76e0e684,
+    type: 2}
+  stairsEndPFab: {fileID: 1270894427280092, guid: 34ac45bd86996b84f94574c3b38d75e7,
+    type: 2}
 --- !u!1001 &1959570486
 Prefab:
   m_ObjectHideFlags: 0
@@ -234,7 +323,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 4089518514901948, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
       propertyPath: m_RootOrder
-      value: 1
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
