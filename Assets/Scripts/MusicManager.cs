@@ -69,7 +69,12 @@ public class MusicManager : MonoBehaviour {
     float[] frequencyBandNormalised64 = new float[64];  
     float[] bandBufferNormalised64 = new float[64];
 
-    //Beat Detection Variables
+    //Beat Detection Variables    
+    float[] historyBuffer = new float[43];
+    int populatedHistory = 0;
+    private bool beat = false;
+
+    //Beat detection advanced
     BeatSubband[] beatSubbands = new BeatSubband[64];
 
     // Use this for initialization
@@ -205,132 +210,212 @@ public class MusicManager : MonoBehaviour {
         }
 	}
 
-    //Dosen't work and I don't know why. Abandoned. Using an API instead.
-    void BeatDetection()
-    {
-        float[] beatSpecL = new float[512];
-        float[] beatSpecR = new float[512];
-        float[] beatSpecAdded = new float[512]; //BUFFER        
+    //not good enough to warrent using.
+    //void BeatDetection()
+    //{
+    //    //compute instant energy
+    //    float[] left = new float[1024];
+    //    float[] right = new float[1024];
 
-        currentSong.source.GetSpectrumData(beatSpecL, 0, FFTWindow.BlackmanHarris);
-        currentSong.source.GetSpectrumData(beatSpecR, 1, FFTWindow.BlackmanHarris);
+    //    currentSong.source.GetSpectrumData(left, 0, FFTWindow.BlackmanHarris);
+    //    currentSong.source.GetSpectrumData(right, 1, FFTWindow.BlackmanHarris);
 
-        bool beat = false;
+    //    float instantEnergy = 0f;
 
-        for(int i = 0; i < beatSpecAdded.Length; i++)
-        {
-            beatSpecAdded[i] = beatSpecL[i] + beatSpecR[i];
-        }
+    //    for (int i = 0; i < left.Length; i++)
+    //    {
+    //        instantEnergy += Mathf.Pow(left[i], 2) + Mathf.Pow(right[i], 2);
+    //    }
 
-        float[] dividedSubbands = new float[64];
+    //    historyBuffer[0] = instantEnergy;
+    //    populatedHistory++;
 
-
-        //for (int i = 0; i < dividedSubbands.Length; i++) { 
-
-        //    float toAdd = 0;
-        //    for(int j = i * dividedSubbands.Length; j < dividedSubbands.Length * (i+1); j++)
-        //    {
-        //        toAdd += beatSpecAdded[j];
-        //    }
-        //    dividedSubbands[i] = toAdd;
-        //}
-
-        //Split into 64 logrithmic bands
-        int count = 0;
-        int sampleBand = 1;
-        int power = 0;
-
-        for (int i = 0; i < 64; i++) 
-        {
-            float average = 0;
-
-            if (i == 16 || i == 32 || i == 40 || i == 48 || i == 56)
-            {
-                power++;
-                sampleBand = (int)Mathf.Pow(2, power);
-                if (power == 3)
-                {
-                    sampleBand -= 2;
-                }
-            }
-
-            for (int j = 0; j < sampleBand; j++)
-            {
-                average += beatSpecAdded[count] * (count + 1);
-                count++;
-            }
-
-            average /= count;
-
-            dividedSubbands[i] = average * 80;
-        }
-
-        //compute instant energy
-        for (int i = 0; i < beatSubbands.Length; i++)
-        {            
-            beatSubbands[i].instantEnergy = Mathf.Pow(dividedSubbands[i],2);          
-
-            //beatSubbands[i].instantEnergy /= 32;
-
-            beatSubbands[i].historyBuffer[0] = beatSubbands[i].instantEnergy;
-            beatSubbands[i].populatedHistory++;
-
-            //make it so it can't go above 42
-            if (beatSubbands[i].populatedHistory >= beatSubbands[i].historyBuffer.Length)
-            {
-                beatSubbands[i].populatedHistory = beatSubbands[i].historyBuffer.Length;
-            }
-
-            //local average energy
-            float localAverageEnergy = 0f;
-
-            for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
-            {
-                localAverageEnergy += beatSubbands[i].historyBuffer[j];
-            }
-
-            localAverageEnergy /= beatSubbands[i].populatedHistory;           
-
-            //shift data on the buffer
-            float[] shiftHistory = new float[beatSubbands[i].historyBuffer.Length];
-
-            for (int j = 0; j < beatSubbands[i].populatedHistory-1; j++)
-            {
-                shiftHistory[j + 1] = beatSubbands[i].historyBuffer[j];
-            }
-
-            shiftHistory[0] = beatSubbands[i].instantEnergy;
-
-            for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
-            {
-                beatSubbands[i].historyBuffer[j] = shiftHistory[j];
-            }
+    //    if (populatedHistory >= historyBuffer.Length)
+    //    {
+    //        populatedHistory = historyBuffer.Length;
+    //    }
 
 
-            float constant = 250;
+    //    //local average energy
+    //    float localAverageEnergy = 0f;
 
-            //Debug.DrawLine(new Vector3(i - 1, beatSubbands[i].instantEnergy + 10, 0), new Vector3(i, beatSubbands[i].instantEnergy + 10, 0), Color.red);
-            Debug.DrawLine(new Vector3(i - 1, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), new Vector3(i, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), Color.red);
-            //Debug.DrawLine(new Vector3(i - 1, constant * localAverageEnergy + 10, 0), new Vector3(i, constant * localAverageEnergy + 10, 0), Color.cyan);
-            Debug.DrawLine(new Vector3(i - 1, Mathf.Log(constant * localAverageEnergy) + 10, 2), new Vector3(i, Mathf.Log(constant * localAverageEnergy) + 10, 2), Color.cyan);
+    //    for (int i = 0; i < populatedHistory; i++)
+    //    {
+    //        localAverageEnergy += Mathf.Pow(historyBuffer[i], 2);
+    //        //  localAverageEnergy += historyBuffer[i]; //unsure if need to pow^2 or not. not seems to work but all the algorithms say i need to.
+    //    }
 
-            //check for beat. 
-            if (beatSubbands[i].instantEnergy > (constant * localAverageEnergy))
-            {
-                beat = true;
-            }
-        }
+    //    localAverageEnergy /= populatedHistory;
 
-        if (beat)
-        {
-            print("Beat");
-        }
-        else
-        {
-            print("no beat");
-        }       
 
-    }
+    //    //variance
+    //    float variance = 0;
+    //    for (int i = 0; i < populatedHistory; i++)
+    //    {
+    //        variance += Mathf.Pow((historyBuffer[i] - localAverageEnergy), 2);
+    //    }
+
+    //    if (populatedHistory > 0)
+    //    {
+    //        variance /= populatedHistory;
+    //    }
+
+    //    //constant
+    //    float constant = (float)((-0.0025714 * variance) + 1.5142857);
+
+
+    //    //shift data on the buffer
+    //    float[] shiftHistory = new float[historyBuffer.Length];
+
+    //    for (int i = 0; i < historyBuffer.Length - 1; i++)
+    //    {
+    //        shiftHistory[i + 1] = historyBuffer[i];
+    //    }
+
+    //    shiftHistory[0] = instantEnergy;
+
+    //    for (int i = 0; i < historyBuffer.Length; i++)
+    //    {
+    //        historyBuffer[i] = shiftHistory[i];
+    //    }
+
+    //    //Debug.DrawLine(new Vector3(i - 1, Mathf.Log(instantEnergy) + 10, 2), new Vector3(i, Mathf.Log(instantEnergy) + 10, 2), Color.red);
+    //    //Debug.DrawLine(new Vector3(i - 1, Mathf.Log(constant * localAverageEnergy) + 10, 2), new Vector3(i, Mathf.Log(constant * localAverageEnergy) + 10, 2), Color.cyan);
+
+    //    if (instantEnergy > (constant * localAverageEnergy))
+    //    {
+    //        if (!beat)
+    //        {
+    //            print("Beat");
+    //            beat = true;
+    //        }
+    //    }
+    //    else
+    //    {
+    //        if (beat)
+    //        {
+    //            beat = false;
+    //        }
+    //        print("no beat");
+    //    }        
+    //}
+
+
+    ////Dosen't work and I don't know why. Abandoned. Using the old one now.
+    //void BeatDetectionBetter()
+    //{
+    //    float[] beatSpecL = new float[512];
+    //    float[] beatSpecR = new float[512];
+    //    float[] beatSpecAdded = new float[512]; //BUFFER        
+
+    //    currentSong.source.GetSpectrumData(beatSpecL, 0, FFTWindow.BlackmanHarris);
+    //    currentSong.source.GetSpectrumData(beatSpecR, 1, FFTWindow.BlackmanHarris);
+
+    //    bool beat = false;
+
+    //    for(int i = 0; i < beatSpecAdded.Length; i++)
+    //    {
+    //        beatSpecAdded[i] = beatSpecL[i] + beatSpecR[i];
+    //    }
+
+    //    float[] dividedSubbands = new float[64];
+
+    //    //Split into 64 logrithmic bands
+    //    int count = 0;
+    //    int sampleBand = 1;
+    //    int power = 0;
+
+    //    for (int i = 0; i < 64; i++) 
+    //    {
+    //        float average = 0;
+
+    //        if (i == 16 || i == 32 || i == 40 || i == 48 || i == 56)
+    //        {
+    //            power++;
+    //            sampleBand = (int)Mathf.Pow(2, power);
+    //            if (power == 3)
+    //            {
+    //                sampleBand -= 2;
+    //            }
+    //        }
+
+    //        for (int j = 0; j < sampleBand; j++)
+    //        {
+    //            average += beatSpecAdded[count] * (count + 1);
+    //            count++;
+    //        }
+
+    //        average /= count;
+
+    //        dividedSubbands[i] = average * 80;
+    //    }
+
+    //    //compute instant energy
+    //    for (int i = 0; i < beatSubbands.Length; i++)
+    //    {            
+    //        beatSubbands[i].instantEnergy = Mathf.Pow(dividedSubbands[i],2);          
+
+    //        //beatSubbands[i].instantEnergy /= 32;
+
+    //        beatSubbands[i].historyBuffer[0] = beatSubbands[i].instantEnergy;
+    //        beatSubbands[i].populatedHistory++;
+
+    //        //make it so it can't go above 42
+    //        if (beatSubbands[i].populatedHistory >= beatSubbands[i].historyBuffer.Length)
+    //        {
+    //            beatSubbands[i].populatedHistory = beatSubbands[i].historyBuffer.Length;
+    //        }
+
+    //        //local average energy
+    //        float localAverageEnergy = 0f;
+
+    //        for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
+    //        {
+    //            localAverageEnergy += beatSubbands[i].historyBuffer[j];
+    //        }
+
+    //        localAverageEnergy /= beatSubbands[i].populatedHistory;           
+
+    //        //shift data on the buffer
+    //        float[] shiftHistory = new float[beatSubbands[i].historyBuffer.Length];
+
+    //        for (int j = 0; j < beatSubbands[i].populatedHistory-1; j++)
+    //        {
+    //            shiftHistory[j + 1] = beatSubbands[i].historyBuffer[j];
+    //        }
+
+    //        shiftHistory[0] = beatSubbands[i].instantEnergy;
+
+    //        for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
+    //        {
+    //            beatSubbands[i].historyBuffer[j] = shiftHistory[j];
+    //        }
+
+
+    //        float constant = 250;
+
+    //        //Debug.DrawLine(new Vector3(i - 1, beatSubbands[i].instantEnergy + 10, 0), new Vector3(i, beatSubbands[i].instantEnergy + 10, 0), Color.red);
+    //        Debug.DrawLine(new Vector3(i - 1, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), new Vector3(i, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), Color.red);
+    //        //Debug.DrawLine(new Vector3(i - 1, constant * localAverageEnergy + 10, 0), new Vector3(i, constant * localAverageEnergy + 10, 0), Color.cyan);
+    //        Debug.DrawLine(new Vector3(i - 1, Mathf.Log(constant * localAverageEnergy) + 10, 2), new Vector3(i, Mathf.Log(constant * localAverageEnergy) + 10, 2), Color.cyan);
+
+    //        //check for beat. 
+    //        if (beatSubbands[i].instantEnergy > (constant * localAverageEnergy))
+    //        {
+    //            beat = true;
+    //        }
+    //    }
+
+    //    if (beat)
+    //    {
+    //        print("Beat");
+    //    }
+    //    else
+    //    {
+    //        print("no beat");
+    //    }       
+
+    //}
 
 
 

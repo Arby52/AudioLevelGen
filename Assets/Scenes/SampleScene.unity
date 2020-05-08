@@ -245,7 +245,6 @@ MonoBehaviour:
   cam: {fileID: 327263151}
   songIndexToPlay: 0
   mixer: {fileID: 24300002, guid: b672dccc5e0ddcb41ad8bb4e6377566a, type: 2}
-  constant: 0
   visualiserCubePrefab: {fileID: 1434352026250452, guid: dd42732a1e1109642b53c881793b53ad,
     type: 2}
   visualiserHolder: {fileID: 0}
@@ -324,10 +323,6 @@ Prefab:
     - target: {fileID: 4089518514901948, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
       propertyPath: m_RootOrder
       value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 4520018405509482, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
-      propertyPath: m_LocalPosition.y
-      value: 0.92
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: da8fd49f9c364b34baac397122f2e37e, type: 2}
