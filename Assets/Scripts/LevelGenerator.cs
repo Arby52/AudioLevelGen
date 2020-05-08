@@ -76,7 +76,6 @@ public class LevelGenerator : MonoBehaviour {
 
         int numOfCells = Mathf.FloorToInt(levelLength / Cell.width + startBuffer + endBuffer);
         float remainingLength = levelLength - startBuffer;
-        print(numOfCells);
 
         Cell.CellClass previousType = Cell.CellClass.End;
 
@@ -187,7 +186,7 @@ public class LevelGenerator : MonoBehaviour {
         levelFloor.transform.localScale = new Vector3(levelLength, 1, 2);
         levelFloor.transform.SetParent(transform); //Make sure to set parent after transform and position have been set :)
         DestroyImmediate(levelFloor.GetComponent<BoxCollider>());
-        BoxCollider2D bx = levelFloor.AddComponent<BoxCollider2D>();
+        levelFloor.AddComponent<BoxCollider2D>();
         //levelFloor.GetComponent<Renderer>().enabled = false;
         levelFloor.tag = "Ground";
         levelFloor.layer = 8; //ground layer

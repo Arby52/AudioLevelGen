@@ -30,9 +30,6 @@ public class MusicManager : MonoBehaviour {
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
 
-    [Range(0,250)]
-    public float constant;
-
     //Visualiser Variables
     GameObject levelFloor;
     public GameObject visualiserCubePrefab;
@@ -73,7 +70,7 @@ public class MusicManager : MonoBehaviour {
     float[] bandBufferNormalised64 = new float[64];
 
     //Beat Detection Variables
-    BeatSubband[] beatSubbands = new BeatSubband[32];
+    BeatSubband[] beatSubbands = new BeatSubband[64];
 
     // Use this for initialization
     void Start () {
@@ -195,7 +192,7 @@ public class MusicManager : MonoBehaviour {
         if (currentSong != null)
         {
             AudioVisualisation();
-            BeatDetection();
+            //BeatDetection();
         }
 
         if(levelFloor != null)
@@ -208,11 +205,12 @@ public class MusicManager : MonoBehaviour {
         }
 	}
 
+    //Dosen't work and I don't know why. Abandoned. Using an API instead.
     void BeatDetection()
     {
-        float[] beatSpecL = new float[1024];
-        float[] beatSpecR = new float[1024];
-        float[] beatSpecAdded = new float[1024];
+        float[] beatSpecL = new float[512];
+        float[] beatSpecR = new float[512];
+        float[] beatSpecAdded = new float[512]; //BUFFER        
 
         currentSong.source.GetSpectrumData(beatSpecL, 0, FFTWindow.BlackmanHarris);
         currentSong.source.GetSpectrumData(beatSpecR, 1, FFTWindow.BlackmanHarris);
@@ -224,20 +222,60 @@ public class MusicManager : MonoBehaviour {
             beatSpecAdded[i] = beatSpecL[i] + beatSpecR[i];
         }
 
-        //compute instant energy
-        for (int i = 0; i < beatSubbands.Length; i++)
-        {
+        float[] dividedSubbands = new float[64];
 
-            for (int j = i * 32; j < (i+1) * 32; j++)
+
+        //for (int i = 0; i < dividedSubbands.Length; i++) { 
+
+        //    float toAdd = 0;
+        //    for(int j = i * dividedSubbands.Length; j < dividedSubbands.Length * (i+1); j++)
+        //    {
+        //        toAdd += beatSpecAdded[j];
+        //    }
+        //    dividedSubbands[i] = toAdd;
+        //}
+
+        //Split into 64 logrithmic bands
+        int count = 0;
+        int sampleBand = 1;
+        int power = 0;
+
+        for (int i = 0; i < 64; i++) 
+        {
+            float average = 0;
+
+            if (i == 16 || i == 32 || i == 40 || i == 48 || i == 56)
             {
-                beatSubbands[i].instantEnergy += beatSpecAdded[j];
+                power++;
+                sampleBand = (int)Mathf.Pow(2, power);
+                if (power == 3)
+                {
+                    sampleBand -= 2;
+                }
             }
 
-            beatSubbands[i].instantEnergy /= 32;
+            for (int j = 0; j < sampleBand; j++)
+            {
+                average += beatSpecAdded[count] * (count + 1);
+                count++;
+            }
+
+            average /= count;
+
+            dividedSubbands[i] = average * 80;
+        }
+
+        //compute instant energy
+        for (int i = 0; i < beatSubbands.Length; i++)
+        {            
+            beatSubbands[i].instantEnergy = Mathf.Pow(dividedSubbands[i],2);          
+
+            //beatSubbands[i].instantEnergy /= 32;
 
             beatSubbands[i].historyBuffer[0] = beatSubbands[i].instantEnergy;
             beatSubbands[i].populatedHistory++;
 
+            //make it so it can't go above 42
             if (beatSubbands[i].populatedHistory >= beatSubbands[i].historyBuffer.Length)
             {
                 beatSubbands[i].populatedHistory = beatSubbands[i].historyBuffer.Length;
@@ -249,28 +287,32 @@ public class MusicManager : MonoBehaviour {
             for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
             {
                 localAverageEnergy += beatSubbands[i].historyBuffer[j];
-                //  localAverageEnergy += historyBuffer[i]; //unsure if need to pow^2 or not. not seems to work but all the algorithms say i need to.
             }
 
-            localAverageEnergy /= 43;
-
-            //constant
-            
+            localAverageEnergy /= beatSubbands[i].populatedHistory;           
 
             //shift data on the buffer
             float[] shiftHistory = new float[beatSubbands[i].historyBuffer.Length];
 
-            for (int j = 0; j < beatSubbands[i].historyBuffer.Length - 1; j++)
+            for (int j = 0; j < beatSubbands[i].populatedHistory-1; j++)
             {
                 shiftHistory[j + 1] = beatSubbands[i].historyBuffer[j];
             }
 
             shiftHistory[0] = beatSubbands[i].instantEnergy;
 
-            for (int j = 0; j < beatSubbands[i].historyBuffer.Length; j++)
+            for (int j = 0; j < beatSubbands[i].populatedHistory; j++)
             {
                 beatSubbands[i].historyBuffer[j] = shiftHistory[j];
             }
+
+
+            float constant = 250;
+
+            //Debug.DrawLine(new Vector3(i - 1, beatSubbands[i].instantEnergy + 10, 0), new Vector3(i, beatSubbands[i].instantEnergy + 10, 0), Color.red);
+            Debug.DrawLine(new Vector3(i - 1, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), new Vector3(i, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), Color.red);
+            //Debug.DrawLine(new Vector3(i - 1, constant * localAverageEnergy + 10, 0), new Vector3(i, constant * localAverageEnergy + 10, 0), Color.cyan);
+            Debug.DrawLine(new Vector3(i - 1, Mathf.Log(constant * localAverageEnergy) + 10, 2), new Vector3(i, Mathf.Log(constant * localAverageEnergy) + 10, 2), Color.cyan);
 
             //check for beat. 
             if (beatSubbands[i].instantEnergy > (constant * localAverageEnergy))
@@ -281,14 +323,12 @@ public class MusicManager : MonoBehaviour {
 
         if (beat)
         {
-            //print("Beat");
+            print("Beat");
         }
         else
         {
-            //print("no beat");
-        }
-
-        
+            print("no beat");
+        }       
 
     }
 
