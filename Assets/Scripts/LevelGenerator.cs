@@ -190,6 +190,7 @@ public class LevelGenerator : MonoBehaviour {
         BoxCollider2D bx = levelFloor.AddComponent<BoxCollider2D>();
         //levelFloor.GetComponent<Renderer>().enabled = false;
         levelFloor.tag = "Ground";
+        levelFloor.layer = 8; //ground layer
 
         //Add and Create Material and Shader for floor        
         Material floorMaterial = new Material(shader);
