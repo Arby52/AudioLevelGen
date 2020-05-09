@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Audio;
+using UnityEngine.Events;
 
 public class BeatSubband
 {    
@@ -49,26 +50,25 @@ public class MusicManager : MonoBehaviour {
 
     //8 bands
     float[] freqencyBand8 = new float[8];
-    float[] bandBuffer8 = new float[8];
     float[] bufferDecrease8 = new float[8];
     float[] frequencyBandHighest8 = new float[8];
 
     //64 bands
     float[] freqencyBand64 = new float[64];    
-    float[] bandBuffer64 = new float[64];
     float[] bufferDecrease64 = new float[64];
     float[] frequencyBandHighest64 = new float[64];
+
+    float lastBeat;
 
     public float decrease;
     public float increase;
     public bool useBuffer;
 
     //Normalised Frequency Data
-    float[] frequencyBandNormalised8 = new float[8];  //Use this in gameplay and mechanics when not using buffer.
-    float[] bandBufferNormalised8 = new float[8];  //Use this in gameplay and mechanics when using buffer.   
+    float[] frequencyBandNormalised8 = new float[8]; 
+    float[] frequencyBandNormalised64 = new float[64];
 
-    float[] frequencyBandNormalised64 = new float[64];  
-    float[] bandBufferNormalised64 = new float[64];
+    public UnityEvent OnBeat;
 
     //Beat Detection Variables    
     float[] historyBuffer = new float[43];
@@ -94,6 +94,11 @@ public class MusicManager : MonoBehaviour {
             beatSubbands[i] = new BeatSubband();
         }
 
+        if (OnBeat == null)
+        {
+            OnBeat = new UnityEvent();
+        }
+
     }   
 
     void Play()
@@ -113,6 +118,7 @@ public class MusicManager : MonoBehaviour {
             levelFloor = levelGenerator.GenerateLevel(currentSong, ref player);
             songTimeElapsed = currentSong.GetTrackLength();
             currentSong.Play();
+            print("freq " + currentSong.clip.frequency);
             InstantiateCubes();
             songPlaying = true;
             //print("Now Playing: " + currentSong.name);
@@ -223,7 +229,194 @@ public class MusicManager : MonoBehaviour {
                 visualiserHolder.transform.position = new Vector3(cam.transform.position.x, visualiserHolder.transform.position.y, visualiserHolder.transform.position.z);
             }
         }
-	}
+	}  
+
+    void AudioVisualisation() //Theres a bug where the first song's visualised data will be really weird. the last 5 frequencies of low amplitude songs seem to be always peaked but only on the first song played.
+    {
+        if (songPlaying)
+        {
+            //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
+            
+            FFTWindow window = FFTWindow.BlackmanHarris;  //compare all windowing to see which works best for the system.
+            currentSong.source.GetSpectrumData(spectrumDataLeft, 0, window);
+            currentSong.source.GetSpectrumData(spectrumDataRight, 1, window);
+
+            //CreateFrequencyBands8();
+            //BandBuffer8();
+            //CreateAudioBands8();
+
+            CreateFrequencyBands64();
+            CreateAudioBands64();
+
+
+            bool drum = false;
+            for (int i = 0; i < visualiserCubes.Length; i++)
+            {
+                float iNormal = ((float)i / visualiserCubes.Length) * 0.8f; //times 0.75 to make it a scale of 0 - 0.75
+                if (visualiserCubes != null)
+                {               
+                    
+                    currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0f);
+
+                    if (frequencyBandNormalised64[i] > cutoff)
+                    {
+                        currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0.7f);
+                        //currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
+
+                        if(i < 58 && i > 52) //drum area. the "i" is reversed.
+                        {
+                            if(frequencyBandNormalised64[i] > cutoff*1.7 && Time.time - lastBeat >= 0.30) // somehow this is the best beat detection I've done. Its not perfect by any means but its seems to work reliably better than anything else I've tried
+                            {
+                                
+                                drum = true;
+                            }
+                        }                            
+                    }
+                    else
+                    {
+                        currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
+                    }
+
+                    visualiserCubes[i].GetComponent<Renderer>().material.color = currentCubeColor[i];
+                    visualiserCubes[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", currentCubeColor[i]);
+
+                    //visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (freqencyBand[i] * scaleMultiplier) + startScale, 1);  
+                }
+            }
+            if (drum)
+            {                
+                lastBeat = Time.time;
+                OnBeat.Invoke();
+                print("drum");
+            }
+        }
+    }
+
+    void CreateAudioBands8()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            //Set the band roof to the highest the band has been.
+            if (freqencyBand8[i] > frequencyBandHighest8[i])
+            {
+                frequencyBandHighest8[i] = freqencyBand8[i];
+            }
+
+            frequencyBandNormalised8[i] = (freqencyBand8[i] / frequencyBandHighest8[i]);
+
+        }
+    }
+
+    void CreateFrequencyBands8()
+    {
+        
+        /* 
+        20-60 - Sub Bass
+        60-250 - Bass
+        250-500 - Low Midrange 
+        500-2000 - Midrange
+        2000-4000 - Upper Midrange
+        4000-6000 - Presence
+        6000-20000 - Brilliance
+        */
+
+        int count = 0;
+
+        for (int i = 0; i < 8; i++) //algorithm by peer play
+        {
+            float average = 0;
+            int sampleBand = (int)Mathf.Pow(2, i) * 2; //width of the current band
+
+            if (i == 7)
+            {  
+               sampleBand += 2;
+            }
+
+            for (int j = 0; j < sampleBand; j++)
+            {
+                average += spectrumDataLeft[count] + spectrumDataRight[count] * (count + 1);
+                count++;
+            }
+
+            average /= count;
+
+            freqencyBand8[i] = average * 10;
+        }
+    }
+
+    void CreateAudioBands64()
+    {
+        for(int i = 0; i < 64; i++)
+        {
+            //Set the band roof to the highest the band has been.
+            if(freqencyBand64[i] > frequencyBandHighest64[i])
+            {
+                frequencyBandHighest64[i] = freqencyBand64[i];
+            }
+
+            frequencyBandNormalised64[i] = (freqencyBand64[i] / frequencyBandHighest64[i]);            
+        }
+    }
+
+    void CreateFrequencyBands64()
+    {
+        /*
+        20-60 - Sub Bass
+        60-250 - Bass
+        250-500 - Low Midrange 
+        500-2000 - Midrange
+        2000-4000 - Upper Midrange
+        4000-6000 - Presence
+        6000-20000 - Brilliance. This is around the maximum a human can hear. Older people can't usually hear this high though.
+        */
+
+        //song hrtz is either 44100 or 48000. The maximum frequency produced is around half the frequency known as the "Nyquist Frequency"
+        //44100 / 2 / 512 = 43hz per sample
+        //48000 / 2 /  512 = 47hz per sample
+        //Average at around 45hz per sample.
+
+        //Kick drum is between 60-150. Bands 1 - 3. (starting at 0)
+        //snare drum is between 120-250. Bands 2 - 5 (starting at 0)
+        //For a very basic drum detection, check for peaks between bands 1 - 5.
+
+        /* rework to get 1024 samples?
+        0-15 - 1 sample -              16
+        16-31 - 2 samples  - 16 * 2 =  32
+        32-39 - 4 samples -  8 * 4  =  32
+        40-47 - 6 samples -  8 * 6  =  48
+        48-55 - 16 samples - 8 * 16 = 128
+        56-63 - 32 samples - 8 * 32 = 256   
+                                      512
+        */
+        int count = 0;
+        int sampleBand = 1;
+        int power = 0;
+
+        for(int i = 0; i < 64; i++)
+        {
+            float average = 0;
+
+            if(i == 16 || i ==32 || i == 40 || i == 48 || i == 56)
+            {
+                power++;
+                sampleBand = (int)Mathf.Pow(2,power); //to hit the 512 samples maximum.
+                if(power == 3)
+                {
+                    sampleBand -= 2;
+                }
+            }
+
+            for(int j = 0; j < sampleBand; j++)
+            {
+                average += spectrumDataLeft[count] + spectrumDataRight[count] * (count+1);
+                count++;
+            }
+
+            average /= count;
+
+            freqencyBand64[i] = average * 80;
+        }
+    }
 
     //not good enough to warrent using.
     //void BeatDetection()
@@ -431,220 +624,4 @@ public class MusicManager : MonoBehaviour {
     //    }       
 
     //}
-
-
-
-    void AudioVisualisation() //Theres a bug where the first song's visualised data will be really weird. the last 5 frequencies of low amplitude songs seem to be always peaked but only on the first song played.
-    {
-        if (songPlaying)
-        {
-            //The higher the array, the most accurate the data. However it will take longer to use. Needs to be multiple of 8.
-            
-            FFTWindow window = FFTWindow.BlackmanHarris;  //compare all windowing to see which works best for the system.
-            currentSong.source.GetSpectrumData(spectrumDataLeft, 0, window);
-            currentSong.source.GetSpectrumData(spectrumDataRight, 1, window);
-
-            //CreateFrequencyBands8();
-            //BandBuffer8();
-            //CreateAudioBands8();
-
-            CreateFrequencyBands64();
-            BandBuffer64();
-            CreateAudioBands64();
-
-            for (int i = 0; i < visualiserCubes.Length; i++)
-            {
-                float iNormal = ((float)i / visualiserCubes.Length) * 0.8f; //times 0.75 to make it a scale of 0 - 0.75
-                if (visualiserCubes != null)
-                {           
-                    
-                    if (useBuffer) //outdated and kinda useless since Im not using scale anymore
-                    {
-
-                        currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0f);
-
-                        if (frequencyBandNormalised64[i] > cutoff)
-                        {
-                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0.7f);
-                            //currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(bandBufferNormalised64[i], 0, 0.7f));
-                        }
-                        else
-                        {
-                            currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
-                        }
-                        
-                        visualiserCubes[i].GetComponent<Renderer>().material.color = currentCubeColor[i];
-                        visualiserCubes[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", currentCubeColor[i]);
-                        
-                        //visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (bandBuffer[i] * scaleMultiplier) + startScale, 1);
-                    } else
-                    {
-
-                        currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0f);
-
-                        if (frequencyBandNormalised64[i] > cutoff)
-                        {
-                            currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, 0.7f);
-                          //currentCubeColor[i] = Color.HSVToRGB(iNormal, 0.9f, Mathf.Clamp(frequencyBandNormalised64[i], 0, 0.7f));
-                            
-                        }
-                        else
-                        {
-                            currentCubeColor[i] -= Color.HSVToRGB(0, 0f, 0.05f);
-                        }
-
-                        visualiserCubes[i].GetComponent<Renderer>().material.color = currentCubeColor[i];
-                        visualiserCubes[i].GetComponent<Renderer>().material.SetColor("_EmissionColor", currentCubeColor[i]);
-
-                        //visualiserCubes[i].transform.localScale = new Vector3(visualiserCubes[i].transform.localScale.x, (freqencyBand[i] * scaleMultiplier) + startScale, 1);
-                    }
-                }
-            }
-        }
-    }
-
-    void CreateAudioBands8()
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            //Set the band roof to the highest the band has been.
-            if (freqencyBand8[i] > frequencyBandHighest8[i])
-            {
-                frequencyBandHighest8[i] = freqencyBand8[i];
-            }
-
-            frequencyBandNormalised8[i] = (freqencyBand8[i] / frequencyBandHighest8[i]);
-            bandBufferNormalised8[i] = (bandBuffer8[i] / frequencyBandHighest8[i]);
-
-        }
-    }
-
-    void BandBuffer8()
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            if (freqencyBand8[i] > bandBuffer8[i])
-            {
-                bandBuffer8[i] = freqencyBand8[i];
-                bufferDecrease8[i] = decrease;
-
-            }
-            else if (freqencyBand8[i] < bandBuffer8[i])
-            {
-                bandBuffer8[i] -= bufferDecrease8[i];
-                bufferDecrease8[i] *= increase;
-            }
-        }
-    }
-
-    void CreateFrequencyBands8()
-    {
-        /* 
-        20-60 - Sub Bass
-        60-250 - Bass
-        250-500 - Low Midrange 
-        500-2000 - Midrange
-        2000-4000 - Upper Midrange
-        4000-6000 - Presence
-        6000-20000 - Brilliance
-        */
-
-        int count = 0;
-
-        for (int i = 0; i < 8; i++) //algorithm by peer play
-        {
-            float average = 0;
-            int sampleBand = (int)Mathf.Pow(2, i) * 2; //width of the current band
-
-            if (i == 7)
-            {  
-               sampleBand += 2;
-            }
-
-            for (int j = 0; j < sampleBand; j++)
-            {
-                average += spectrumDataLeft[count] + spectrumDataRight[count] * (count + 1);
-                count++;
-            }
-
-            average /= count;
-
-            freqencyBand8[i] = average * 10;
-        }
-    }
-
-    void CreateAudioBands64()
-    {
-        for(int i = 0; i < 64; i++)
-        {
-            //Set the band roof to the highest the band has been.
-            if(freqencyBand64[i] > frequencyBandHighest64[i])
-            {
-                frequencyBandHighest64[i] = freqencyBand64[i];
-            }
-
-            frequencyBandNormalised64[i] = (freqencyBand64[i] / frequencyBandHighest64[i]);            
-            bandBufferNormalised64[i] = (bandBuffer64[i] / frequencyBandHighest64[i]);
-
-        }
-    }
-
-    void BandBuffer64()
-    {
-        for(int i = 0; i < 64; i++)
-        {
-            if(freqencyBand64[i] > bandBuffer64[i])
-            {
-                bandBuffer64[i] = freqencyBand64[i];
-                bufferDecrease64[i] = decrease;
-
-            } else if (freqencyBand64[i] < bandBuffer64[i])
-            {
-                bandBuffer64[i] -= bufferDecrease64[i];
-                bufferDecrease64[i] *= increase;
-            }
-        }
-    }
-
-    void CreateFrequencyBands64()
-    {
-        /*
-        20-60 - Sub Bass
-        60-250 - Bass
-        250-500 - Low Midrange 
-        500-2000 - Midrange
-        2000-4000 - Upper Midrange
-        4000-6000 - Presence
-        6000-20000 - Brilliance
-        */
-
-        int count = 0;
-        int sampleBand = 1;
-        int power = 0;
-
-        for(int i = 0; i < 64; i++) //algorithm by peer play
-        {
-            float average = 0;
-
-            if(i == 16 || i ==32 || i == 40 || i == 48 || i == 56)
-            {
-                power++;
-                sampleBand = (int)Mathf.Pow(2,power); //to hit the 512 smaples maximum.
-                if(power == 3)
-                {
-                    sampleBand -= 2;
-                }
-            }
-
-            for(int j = 0; j < sampleBand; j++)
-            {
-                average += spectrumDataLeft[count] + spectrumDataRight[count] * (count+1);
-                count++;
-            }
-
-            average /= count;
-
-            freqencyBand64[i] = average * 80;
-        }
-    }    
 }

@@ -26,6 +26,7 @@ public class LevelGenerator : MonoBehaviour {
     private string levelFloorNameString = "levelFloor";
     private string levelBarNameString = "levelBar";
 
+    bool groundCol = true;
     Material terrainMaterial;
     Shader shader;
 
@@ -154,9 +155,6 @@ public class LevelGenerator : MonoBehaviour {
             cellList.Add(cellObj);
         }
 
-
-
-
     }
 
     void CreateFloor(Track _track, ref GameObject _player)
@@ -226,6 +224,40 @@ public class LevelGenerator : MonoBehaviour {
         _player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -2);
 
         lerpTime = 0;
+    }
+
+    public void SwitchTerrainColor()
+    {
+        GameObject[] ground = GameObject.FindGameObjectsWithTag("Ground");
+        
+            
+        if(groundCol)
+        {
+            foreach (var g in ground)
+            {
+                g.GetComponent<Renderer>().material = terrainMaterial;
+                g.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+                g.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
+            }
+            levelBar.GetComponent<Renderer>().material = terrainMaterial;
+            levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+            levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
+            groundCol = false;
+        }  else
+        {
+            foreach (var g in ground)
+            {
+                g.GetComponent<Renderer>().material = terrainMaterial;
+                g.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+                g.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.blue);
+            }
+            levelBar.GetComponent<Renderer>().material = terrainMaterial;
+            levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+            levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.blue);
+            groundCol = true;
+        }
+            
+        
     }
 
     public void Update()
