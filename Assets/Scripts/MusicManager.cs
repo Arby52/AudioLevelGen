@@ -16,6 +16,7 @@ public class MusicManager : MonoBehaviour {
 
     public GameObject player;
     public Camera cam;
+    bool playerDeath = false;
 
     //Track loading and playback
     TrackLoader trackLoader;
@@ -174,8 +175,22 @@ public class MusicManager : MonoBehaviour {
         }
     }
 	
+    public void PlayerDeath()
+    {
+        if (!playerDeath)
+        {
+            playerDeath = true;
+        }
+    }
+
 	// Update is called once per frame
 	void Update () {
+        if (playerDeath)
+        {
+            PlayNextSong();
+            playerDeath = false;
+        }
+
         if(Input.GetKeyDown(KeyCode.RightArrow))
         {
             PlayNextSong();
