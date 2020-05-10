@@ -109,8 +109,29 @@ public class LevelGenerator : MonoBehaviour {
             switch (previousType)
             {
                 case Cell.CellClass.Start: //Make a middle one
-                    cell.cellClassType = Cell.CellClass.Middle;
-                    previousType = Cell.CellClass.Middle;
+
+
+                    //If making a middle one and the remaining distance is greater than cellwidth*2 + endbuffer, then theres a chance to make another middle one after.
+                    if(remainingLength >= (Cell.width*2 + endBuffer))
+                    {
+                        int chanceOfSecondMiddle = Random.RandomRange(1, 3);
+                        if(chanceOfSecondMiddle == 1) //1 in 3 chance to end the middle spawns
+                        {
+                            cell.cellClassType = Cell.CellClass.Middle;
+                            previousType = Cell.CellClass.Middle;
+                        } else //2 in 3 chance to add another middle
+                        {
+                            cell.cellClassType = Cell.CellClass.Start;
+                            previousType = Cell.CellClass.Start;
+                        }
+                        
+
+                    } else
+                    {
+                        cell.cellClassType = Cell.CellClass.Middle;
+                        previousType = Cell.CellClass.Middle;
+                    }
+                        
 
                     switch (cellVarient)
                     {
