@@ -21,8 +21,4 @@ public class Cell : MonoBehaviour {
     public CellVarient cellVarientType;
     public CellClass cellClassType;
 
-    public void Initialize()
-    {
-
-    }
 }

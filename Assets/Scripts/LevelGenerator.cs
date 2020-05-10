@@ -75,19 +75,20 @@ public class LevelGenerator : MonoBehaviour {
                 Destroy(cellList[i]);
             }
         }
-        cellList.Clear();
-        
+        cellList.Clear();        
 
-        float startBuffer = levelBar.transform.localScale.x;
-        float endBuffer = levelBar.transform.localScale.x;
+        float startBuffer = levelBar.transform.localScale.x; //A buffer before any cells spawn
+        float endBuffer = levelBar.transform.localScale.x; //A buffer at the end of the level where cells cant spawn
         Vector3 firstCellStart = new Vector3(levelBar.transform.position.x + (levelBar.transform.localScale.x/2) + Cell.width/2, 1, 1);
 
-        if(startBuffer + endBuffer + (Cell.width*2) > levelLength)
+        //If the song/level is too short to support the smallest cell pattern, return.
+        if(startBuffer + endBuffer + (Cell.width*3) > levelLength)
         {
             //maybe add a smaller adjustable cell?
             return;
         }
 
+        //Calculate the number of cells that can spawn in the level. Remaining length variable used to see how much width is left for cell spawning. Important to make sure we always end on the correct cell type.
         int numOfCells = Mathf.FloorToInt(levelLength / Cell.width + startBuffer + endBuffer);
         float remainingLength = levelLength - startBuffer;
 
@@ -103,18 +104,15 @@ public class LevelGenerator : MonoBehaviour {
             cell = cellObj.AddComponent<Cell>();
 
             int cellVarient = Random.Range(0, 0);
-
-            bool breakOutOfLoop = false;            
+            bool breakOutOfLoop = false; //Since cell creation is inside a switch, you can't use "break", used to break from the loop once the switch iteration is complete.     
 
             switch (previousType)
             {
                 case Cell.CellClass.Start: //Make a middle one
-
-
                     //If making a middle one and the remaining distance is greater than cellwidth*2 + endbuffer, then theres a chance to make another middle one after.
                     if(remainingLength >= (Cell.width*2 + endBuffer))
                     {
-                        int chanceOfSecondMiddle = Random.RandomRange(1, 3);
+                        int chanceOfSecondMiddle = Random.Range(1, 3);
                         if(chanceOfSecondMiddle == 1) //1 in 3 chance to end the middle spawns
                         {
                             cell.cellClassType = Cell.CellClass.Middle;
@@ -123,16 +121,14 @@ public class LevelGenerator : MonoBehaviour {
                         {
                             cell.cellClassType = Cell.CellClass.Start;
                             previousType = Cell.CellClass.Start;
-                        }
-                        
-
+                        }                      
                     } else
                     {
                         cell.cellClassType = Cell.CellClass.Middle;
                         previousType = Cell.CellClass.Middle;
-                    }
-                        
+                    }                        
 
+                    //Expands as more varients are added.
                     switch (cellVarient)
                     {
                         case 0: // Stairs Varient
@@ -140,7 +136,6 @@ public class LevelGenerator : MonoBehaviour {
                             Instantiate(stairsMiddlePFab, cellObj.transform);    
                             break;
                     }
-
                     break;
 
                 case Cell.CellClass.Middle: //Make an end one
@@ -154,11 +149,10 @@ public class LevelGenerator : MonoBehaviour {
                             Instantiate(stairsEndPFab, cellObj.transform);
                             break;
                     }
-
-
                     break;
 
                 case Cell.CellClass.End: //Make a start one
+                    //If there isn't enough space left for a full minimum sized cell pattern, don't create any more.
                     if (remainingLength <= (Cell.width*3) + endBuffer)
                     {
                         Destroy(cellObj);
@@ -175,7 +169,6 @@ public class LevelGenerator : MonoBehaviour {
                                 Instantiate(stairsStartPFab, cellObj.transform);
                                 break;
                         }
-
                     }
                     break;
             }
@@ -188,11 +181,11 @@ public class LevelGenerator : MonoBehaviour {
             remainingLength -= Cell.width;
             cellList.Add(cellObj);
         }
-
     }
 
     void CreateFloor(Track _track, ref GameObject _player)
     {
+        //Make sure objects from old song are destroyed.
         if (gameObject.transform.Find(levelFloorNameString))
         {
             Destroy(gameObject.transform.Find(levelFloorNameString).gameObject);
@@ -228,6 +221,7 @@ public class LevelGenerator : MonoBehaviour {
         floorMaterial.color = Color.red;
         levelFloor.GetComponent<Renderer>().material = floorMaterial;
 
+        //Level Bar
         levelBar = GameObject.CreatePrimitive(PrimitiveType.Cube);
         levelBar.name = levelBarNameString;
         float barWidth = levelLength / 40;
@@ -237,6 +231,12 @@ public class LevelGenerator : MonoBehaviour {
         levelBar.transform.localScale = new Vector3(barWidth, 1, 1);
         levelBar.transform.SetParent(levelFloor.transform);
 
+        //Add and Create Material and Shader for bar        
+        levelBar.GetComponent<Renderer>().material = terrainMaterial;
+        levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
+        levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
+
+        //Make hiders to cover the visualisation bars at the start and end of the track.
         GameObject barHiderL = Instantiate(backgroundPFab);
         barHiderL.name = "hiderL";
         barHiderL.transform.localScale = new Vector3(30, levelBar.transform.localScale.y, 0.5f);
@@ -249,22 +249,19 @@ public class LevelGenerator : MonoBehaviour {
         barHiderR.transform.position = new Vector3((levelFloor.transform.position.x + levelFloor.transform.localScale.x / 2) + barHiderR.transform.localScale.x / 2, levelBar.transform.position.y, -2);
         barHiderR.transform.SetParent(transform);
 
-        //Add and Create Material and Shader for bar
-        
-        levelBar.GetComponent<Renderer>().material = terrainMaterial;
-        levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
-        levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
-
+        //Set player's position to the start of the new level.
         _player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -2);
 
         lerpTime = 0;
     }
 
+    //Invert Shrinking Bool, called on beat detection event from Music Manager.
     public void ShrinkingPlatform()
     {
         shouldShrink = !shouldShrink;
     }
 
+    //Called on beat detection event from Music Manager.
     public void SwitchTerrainColor()
     {
         GameObject[] a = GameObject.FindGameObjectsWithTag("Ground");
@@ -296,9 +293,7 @@ public class LevelGenerator : MonoBehaviour {
             levelBar.GetComponent<Renderer>().material.EnableKeyword("_EMISSION");
             levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.blue);
             groundCol = true;
-        }
-            
-        
+        }             
     }
 
     public void Update()
@@ -322,8 +317,6 @@ public class LevelGenerator : MonoBehaviour {
                     }
                 }
             }
-
-
         }
     }
 }
