@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class LevelGenerator : MonoBehaviour {
     
@@ -31,6 +32,12 @@ public class LevelGenerator : MonoBehaviour {
     Shader shader;
 
     List<GameObject> cellList = new List<GameObject>();
+    GameObject[] shrinkingPlatforms;
+
+    //Shrinking Platform Lerp
+    Vector3 shrinkingPlatformOriginal = new Vector3(6, 1, 1);
+    Vector3 shrinkingPlatformShrunk = new Vector3(1, 1, 1);
+    bool shouldShrink = false;
 
     private bool isGenerated = false;
 
@@ -47,9 +54,15 @@ public class LevelGenerator : MonoBehaviour {
 
         CreateFloor(_track, ref _player);
         CreateCells();
+        PopulateContainers();
 
         isGenerated = true;
         return levelFloor;
+    }
+
+    void PopulateContainers()
+    {
+        shrinkingPlatforms = GameObject.FindGameObjectsWithTag("ShrinkingPlatform");
     }
 
     void CreateCells()
@@ -101,9 +114,9 @@ public class LevelGenerator : MonoBehaviour {
 
                     switch (cellVarient)
                     {
-                        case 0:
+                        case 0: // Stairs Varient
                             cell.cellVarientType = Cell.CellVarient.Stairs;
-                            Instantiate(stairsMiddlePFab, cellObj.transform);
+                            Instantiate(stairsMiddlePFab, cellObj.transform);    
                             break;
                     }
 
@@ -115,7 +128,7 @@ public class LevelGenerator : MonoBehaviour {
 
                     switch (cellVarient)
                     {
-                        case 0:
+                        case 0: // Stairs Varient
                             cell.cellVarientType = Cell.CellVarient.Stairs;
                             Instantiate(stairsEndPFab, cellObj.transform);
                             break;
@@ -136,7 +149,7 @@ public class LevelGenerator : MonoBehaviour {
 
                         switch (cellVarient)
                         {
-                            case 0:
+                            case 0: // Stairs Varient
                                 cell.cellVarientType = Cell.CellVarient.Stairs;
                                 Instantiate(stairsStartPFab, cellObj.transform);
                                 break;
@@ -174,7 +187,7 @@ public class LevelGenerator : MonoBehaviour {
 
         print(_track);
         track = _track;
-        levelLength = _track.GetTrackLength();
+        levelLength = _track.GetTrackLength() * 2;
         lerpTime = 0;
 
         //Create Floor
@@ -226,12 +239,19 @@ public class LevelGenerator : MonoBehaviour {
         lerpTime = 0;
     }
 
+    public void ShrinkingPlatform()
+    {
+        shouldShrink = !shouldShrink;
+    }
+
     public void SwitchTerrainColor()
     {
-        GameObject[] ground = GameObject.FindGameObjectsWithTag("Ground");
-        
-            
-        if(groundCol)
+        GameObject[] a = GameObject.FindGameObjectsWithTag("Ground");
+        GameObject[] b = GameObject.FindGameObjectsWithTag("ShrinkingPlatform");
+
+        GameObject[] ground = a.Concat(b).ToArray();
+
+        if (groundCol)
         {
             foreach (var g in ground)
             {
@@ -266,6 +286,23 @@ public class LevelGenerator : MonoBehaviour {
         {
             lerpTime += Time.deltaTime / levelLength;
             levelBar.transform.position = Vector3.Lerp(levelBarStartPos, levelBarEndPos, lerpTime);
+
+            foreach(var platform in shrinkingPlatforms)
+            {
+                if (platform != null)
+                {
+                    if (shouldShrink)
+                    {
+                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformShrunk, 0.2f);
+                    }
+                    else
+                    {
+                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformOriginal, 0.2f);
+                    }
+                }
+            }
+
+
         }
     }
 }

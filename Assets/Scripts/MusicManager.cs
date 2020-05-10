@@ -17,6 +17,7 @@ public class MusicManager : MonoBehaviour {
 
     public GameObject player;
     public Camera cam;
+    public Camera lineCam;
     bool playerDeath = false;
 
     //Track loading and playback
@@ -31,7 +32,7 @@ public class MusicManager : MonoBehaviour {
 
     private LevelGenerator levelGenerator;
     public AudioMixerGroup mixer;
-
+    
     //Visualiser Variables
     GameObject levelFloor;
     public GameObject visualiserCubePrefab;
@@ -56,27 +57,24 @@ public class MusicManager : MonoBehaviour {
     //64 bands
     float[] freqencyBand64 = new float[64];    
     float[] bufferDecrease64 = new float[64];
-    float[] frequencyBandHighest64 = new float[64];
-
-    float lastBeat;
-
-    public float decrease;
-    public float increase;
-    public bool useBuffer;
+    float[] frequencyBandHighest64 = new float[64];   
 
     //Normalised Frequency Data
     float[] frequencyBandNormalised8 = new float[8]; 
     float[] frequencyBandNormalised64 = new float[64];
 
-    public UnityEvent OnBeat;
-
-    //Beat Detection Variables    
-    float[] historyBuffer = new float[43];
-    int populatedHistory = 0;
-    private bool beat = false;
-
     //Beat detection advanced
+    public UnityEvent OnBeat;  
+    private bool beat = false;
+    float lastBeat;
     BeatSubband[] beatSubbands = new BeatSubband[64];
+
+    //Beat Lines. To display beat detection.
+    LineRenderer[] BeatLines1 = new LineRenderer[64];
+    LineRenderer[] BeatLines2 = new LineRenderer[64];
+    bool renderBeatLines = false;
+
+
 
     // Use this for initialization
     void Start () {
@@ -97,6 +95,28 @@ public class MusicManager : MonoBehaviour {
         if (OnBeat == null)
         {
             OnBeat = new UnityEvent();
+        }
+
+        for (int i = 0; i < BeatLines1.Length; i++)
+        {            
+            BeatLines1[i] = (new GameObject("line")).AddComponent<LineRenderer>();
+            BeatLines1[i].material = new Material(Shader.Find("Particles/Alpha Blended Premultiply"));
+            BeatLines1[i].startColor = Color.red;
+            BeatLines1[i].endColor = Color.red;
+            BeatLines1[i].startWidth = 0.05f;
+            BeatLines1[i].transform.parent = lineCam.transform;
+            BeatLines1[i].enabled = false;
+        }
+
+        for (int i = 0; i < BeatLines2.Length; i++)
+        {            
+            BeatLines2[i] = (new GameObject("line")).AddComponent<LineRenderer>();
+            BeatLines2[i].material = new Material(Shader.Find("Particles/Alpha Blended Premultiply"));
+            BeatLines2[i].startColor = Color.cyan;
+            BeatLines2[i].endColor = Color.cyan;
+            BeatLines2[i].startWidth = 0.05f;
+            BeatLines2[i].transform.parent = lineCam.transform;
+            BeatLines2[i].enabled = false;
         }
 
     }   
@@ -205,6 +225,34 @@ public class MusicManager : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             Application.Quit();
+        }
+
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            if (renderBeatLines)
+            {
+                foreach(var line in BeatLines1)
+                {
+                    line.enabled = false;
+                }
+                foreach (var line in BeatLines2)
+                {
+                    line.enabled = false;
+                }
+
+                renderBeatLines = false;
+            } else
+            {
+                foreach (var line in BeatLines1)
+                {
+                    line.enabled = true;
+                }
+                foreach (var line in BeatLines2)
+                {
+                    line.enabled = true;
+                }
+                renderBeatLines = true;
+            }
         }
 
         songTimeElapsed -= Time.deltaTime;
@@ -495,13 +543,21 @@ public class MusicManager : MonoBehaviour {
                     beatSubbands[i].historyBuffer[j] = shiftHistory[j];
                 }
 
+                //The algorithm says it needs to be about 250. 5 works perfectly. I don't know why. Honestly, I think I've gotten the right solution with the wrong formula with this whole function.
                 float constant = 5;
 
-                //Debug.DrawLine(new Vector3(i - 1, beatSubbands[i].instantEnergy + 10, 0), new Vector3(i, beatSubbands[i].instantEnergy + 10, 0), Color.red);
-                Debug.DrawLine(new Vector3(i - 1, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), new Vector3(i, Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2), Color.red);
-                //Debug.DrawLine(new Vector3(i - 1, constant * localAverageEnergy + 10, 0), new Vector3(i, constant * localAverageEnergy + 10, 0), Color.cyan);
-                Debug.DrawLine(new Vector3(i - 1, Mathf.Log(constant * localAverageEnergy) + 10, 2), new Vector3(i, Mathf.Log(constant * localAverageEnergy) + 10, 2), Color.cyan);
+                
+                //Vectors taken from unity API example on getSpectrumData
+                int xOffset = 55;
+                BeatLines1[i].SetPosition(0, new Vector3(i - 1 - xOffset, 90 + Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2));
+                BeatLines1[i].SetPosition(1, new Vector3(i - xOffset, 90 + Mathf.Log(beatSubbands[i].instantEnergy) + 10, 2));
 
+                BeatLines2[i].SetPosition(0, new Vector3(i - 1 - xOffset, 90 + Mathf.Log(constant * localAverageEnergy) + 10, 2));
+                BeatLines2[i].SetPosition(1, new Vector3(i - xOffset, 90 + Mathf.Log(constant * localAverageEnergy) + 10, 2));
+                
+
+
+                
                 //check for beat. 
                 if (beatSubbands[i].instantEnergy > (constant * localAverageEnergy) && Time.time - lastBeat >= 0.30)
                 {
@@ -516,4 +572,9 @@ public class MusicManager : MonoBehaviour {
             OnBeat.Invoke();
         }
     }
+
+
+       
+       
+    
 }

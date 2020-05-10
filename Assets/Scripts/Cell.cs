@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Cell : MonoBehaviour {
 
-    static public float width = 15;
+    static public float width = 10;
     
     public enum CellVarient
     {
