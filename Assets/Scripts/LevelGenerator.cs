@@ -12,8 +12,8 @@ public class LevelGenerator : MonoBehaviour {
     public GameObject stairsMiddlePFab;
     public GameObject stairsEndPFab;
 
-    private Track track;
-    
+    GameObject barHiderL;
+    GameObject barHiderR;
     GameObject levelFloor;
     GameObject levelBar;
     private float levelLength = 300;
@@ -46,17 +46,42 @@ public class LevelGenerator : MonoBehaviour {
         shader = Shader.Find("Standard");
         terrainMaterial = new Material(shader);
         terrainMaterial.color = Color.green;
+        levelFloor = new GameObject();
+    }
+
+    public void Update()
+    {
+        if (isGenerated)
+        {
+            lerpTime += Time.deltaTime / levelLength;
+            levelBar.transform.position = Vector3.Lerp(levelBarStartPos, levelBarEndPos, lerpTime);
+
+            foreach (var platform in shrinkingPlatforms)
+            {
+                if (platform != null)
+                {
+                    if (shouldShrink)
+                    {
+                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformShrunk, 0.2f);
+                    }
+                    else
+                    {
+                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformOriginal, 0.2f);
+                    }
+                }
+            }
+        }
     }
 
     public GameObject GenerateLevel(Track _track, ref GameObject _player)
     {
-        isGenerated = false;
-
+        isGenerated = false;        
         CreateFloor(_track, ref _player);
         CreateCells();
         PopulateContainers();
 
         isGenerated = true;
+        
         return levelFloor;
     }
 
@@ -186,22 +211,21 @@ public class LevelGenerator : MonoBehaviour {
     void CreateFloor(Track _track, ref GameObject _player)
     {
         //Make sure objects from old song are destroyed.
-        if (gameObject.transform.Find(levelFloorNameString))
+        if (levelFloor != null)
         {
-            Destroy(gameObject.transform.Find(levelFloorNameString).gameObject);
+            Destroy(levelFloor);
         }
-        if (gameObject.transform.Find("hiderL"))
+        if (barHiderL != null)
         {
-            Destroy(gameObject.transform.Find("hiderL").gameObject);
+            Destroy(barHiderL);
         }
-        if (gameObject.transform.Find("hiderR"))
+        if (barHiderR != null)
         {
-            Destroy(gameObject.transform.Find("hiderR").gameObject);
+            Destroy(barHiderL);
         }
 
         print(_track);
-        track = _track;
-        levelLength = _track.GetTrackLength() * 2;
+        levelLength = _track.GetTrackLength();
         lerpTime = 0;
 
         //Create Floor
@@ -237,20 +261,21 @@ public class LevelGenerator : MonoBehaviour {
         levelBar.GetComponent<Renderer>().material.SetColor("_EmissionColor", Color.green);
 
         //Make hiders to cover the visualisation bars at the start and end of the track.
-        GameObject barHiderL = Instantiate(backgroundPFab);
+        
+        barHiderL = Instantiate(backgroundPFab);
         barHiderL.name = "hiderL";
         barHiderL.transform.localScale = new Vector3(30, levelBar.transform.localScale.y, 0.5f);
         barHiderL.transform.position = new Vector3((levelFloor.transform.position.x - levelFloor.transform.localScale.x / 2) - barHiderL.transform.localScale.x / 2, levelBar.transform.position.y, -2);
         barHiderL.transform.SetParent(transform);
 
-        GameObject barHiderR = Instantiate(backgroundPFab);
+        barHiderR = Instantiate(backgroundPFab);
         barHiderR.name = "hiderR";
         barHiderR.transform.localScale = new Vector3(30, levelBar.transform.localScale.y, 0.5f);
         barHiderR.transform.position = new Vector3((levelFloor.transform.position.x + levelFloor.transform.localScale.x / 2) + barHiderR.transform.localScale.x / 2, levelBar.transform.position.y, -2);
         barHiderR.transform.SetParent(transform);
-
+        
         //Set player's position to the start of the new level.
-        _player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 1, -2);
+        _player.transform.position = new Vector3(levelBar.transform.position.x, levelBar.transform.position.y + 2, -2f);
 
         lerpTime = 0;
     }
@@ -296,27 +321,5 @@ public class LevelGenerator : MonoBehaviour {
         }             
     }
 
-    public void Update()
-    {
-        if (isGenerated)
-        {
-            lerpTime += Time.deltaTime / levelLength;
-            levelBar.transform.position = Vector3.Lerp(levelBarStartPos, levelBarEndPos, lerpTime);
-
-            foreach(var platform in shrinkingPlatforms)
-            {
-                if (platform != null)
-                {
-                    if (shouldShrink)
-                    {
-                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformShrunk, 0.2f);
-                    }
-                    else
-                    {
-                        platform.transform.localScale = Vector3.Lerp(platform.transform.localScale, shrinkingPlatformOriginal, 0.2f);
-                    }
-                }
-            }
-        }
-    }
+    
 }

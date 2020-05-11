@@ -8,14 +8,14 @@ public class Track : MonoBehaviour {
     public AudioSource source;
     public AudioClip clip;
     public AudioMixerGroup mixer;
-    public string name;
+    public string clipName;
     
 
     public void Initialise()
     {
         source = gameObject.AddComponent<AudioSource>();
         source.clip = clip;
-        source.name = name;
+        source.name = clipName;
         source.outputAudioMixerGroup = mixer;
     }
 
