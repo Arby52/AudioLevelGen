@@ -521,6 +521,7 @@ public class MusicManager : MonoBehaviour {
         }
     }
 
+    //http://archive.gamedev.net/archive/reference/programming/features/beatdetection/
     void BeatDetection()
     {
         bool beat = false;
